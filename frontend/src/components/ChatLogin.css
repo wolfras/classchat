@@ -1,0 +1,108 @@
+.chat-login {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.chat-login-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.chat-login-header svg {
+  color: var(--accent-purple, #7c3aed);
+  margin-bottom: 0.5rem;
+}
+
+.chat-login-header h4 {
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.chat-login-header p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.chat-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.chat-login-form input {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.chat-login-form input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+}
+
+.chat-login-error {
+  color: #ef4444;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.chat-login-btn {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--accent-purple, #7c3aed);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.chat-login-btn:hover {
+  opacity: 0.9;
+}
+
+.chat-login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-login-section p {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.quick-login-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.quick-login-item {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.quick-login-item:hover {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
