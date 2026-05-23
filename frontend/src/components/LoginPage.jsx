@@ -5,6 +5,7 @@ import loginIcon from '@iconify/icons-mdi/login';
 import accountIcon from '@iconify/icons-mdi/account';
 import lockIcon from '@iconify/icons-mdi/lock';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
+import { API_URL } from '../config';
 import './LoginPage.css';
 
 const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
@@ -22,7 +23,7 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/members');
+      const res = await fetch(`${API_URL}/api/members`);
       if (!res.ok) {
         throw new Error('Failed to fetch members');
       }
@@ -45,7 +46,7 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
     try {
       console.log('Attempting login with:', username);
       
-      const res = await fetch('http://localhost:3001/api/login', {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -85,7 +86,7 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
     try {
       console.log('Quick login for:', member.name);
       
-      const res = await fetch('http://localhost:3001/api/login', {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

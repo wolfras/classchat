@@ -8,9 +8,10 @@ import codeBracesIcon from '@iconify/icons-mdi/code-braces';
 import rocketIcon from '@iconify/icons-mdi/rocket';
 import chatIcon from '@iconify/icons-mdi/chat';
 import circleIcon from '@iconify/icons-mdi/circle';
+import { API_URL } from '../config';
 import './Home.css';
 
-const SOCKET_URL = 'http://localhost:3001';
+
 
 const Home = ({ isDarkTheme }) => {
   const [stats, setStats] = useState({
@@ -28,7 +29,7 @@ const Home = ({ isDarkTheme }) => {
     setSocket(newSocket);
 
     // Fetch initial data
-    fetch('http://localhost:3001/api/students')
+    fetch(`${API_URL}/api/students`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -49,7 +50,7 @@ const Home = ({ isDarkTheme }) => {
     });
 
     // Fetch message count
-    fetch('http://localhost:3001/api/messages')
+    fetch(`${API_URL}/api/messages`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -66,7 +67,7 @@ const Home = ({ isDarkTheme }) => {
   // Update stats every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch('http://localhost:3001/api/students')
+      fetch(`${API_URL}/api/students`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {

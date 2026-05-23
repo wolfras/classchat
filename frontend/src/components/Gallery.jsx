@@ -6,6 +6,7 @@ import emailIcon from '@iconify/icons-mdi/email';
 import accountIcon from '@iconify/icons-mdi/account';
 import circleIcon from '@iconify/icons-mdi/circle';
 import closeIcon from '@iconify/icons-mdi/close';
+import { API_URL } from '../config';
 import './Gallery.css';
 
 const Gallery = ({ isDarkTheme, currentUser }) => {
@@ -21,7 +22,7 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/students');
+      const res = await fetch('${API_URL}/api/students');
       const data = await res.json();
       if (data.success) {
         setStudents(data.students);

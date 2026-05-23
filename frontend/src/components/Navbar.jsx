@@ -11,6 +11,7 @@ import moonWaningCrescent from '@iconify/icons-mdi/moon-waning-crescent';
 import accountIcon from '@iconify/icons-mdi/account';
 import logoutIcon from '@iconify/icons-mdi/logout';
 import loginIcon from '@iconify/icons-mdi/login';
+import { API_URL } from '../config';
 import './Navbar.css';
 
 const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatOpen }) => {
@@ -18,7 +19,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await fetch('http://localhost:3001/api/logout', { 
+    await fetch(`${API_URL}/api/logout`, { 
       method: 'POST',
       credentials: 'include'
     });

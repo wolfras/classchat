@@ -7,9 +7,9 @@ import circleIcon from '@iconify/icons-mdi/circle';
 import accountIcon from '@iconify/icons-mdi/account';
 import messageTextIcon from '@iconify/icons-mdi/message-text';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
+import { API_URL } from '../config';
 import './ChatPage.css';
 
-const SOCKET_URL = 'http://localhost:3001';
 
 const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [socket, setSocket] = useState(null);
@@ -21,6 +21,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [privateChats, setPrivateChats] = useState({});
   const [unreadPrivate, setUnreadPrivate] = useState({});
   const [pendingMessages, setPendingMessages] = useState(new Set()); // Track pending message IDs
+  import { SOCKET_URL, API_URL } from '../config';
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -121,7 +122,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   // Fetch initial data
   useEffect(() => {
     if (!currentUser) return;
-    fetch('http://localhost:3001/api/students')
+    fetch(`${API_URL}/api/students`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {

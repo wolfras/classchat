@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { API_URL } from '../config';
 
-const SOCKET_URL = 'http://localhost:3001';
 
 const ChatWrapper = ({ isDarkTheme, currentUser, setCurrentUser, onClose }) => {
   const [socket, setSocket] = useState(null);
@@ -15,7 +15,7 @@ const ChatWrapper = ({ isDarkTheme, currentUser, setCurrentUser, onClose }) => {
 
   // Fetch members for quick login
   useEffect(() => {
-    fetch('http://localhost:3001/api/members')
+   fetch(`${API_URL}/api/members`)
       .then(res => res.json())
       .then(data => setMembers(data))
       .catch(err => console.error('Error fetching members:', err));
@@ -51,7 +51,7 @@ const ChatWrapper = ({ isDarkTheme, currentUser, setCurrentUser, onClose }) => {
     setLoginError('');
 
     try {
-      const res = await fetch('http://localhost:3001/api/login', {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -83,7 +83,7 @@ const ChatWrapper = ({ isDarkTheme, currentUser, setCurrentUser, onClose }) => {
 
     if (member) {
       try {
-        const res = await fetch(`http://localhost:3001/api/login/${member.id}`, {
+        const res = await fetch(`${API_URL}/api/login/${member.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password: loginPassword })
@@ -106,7 +106,7 @@ const ChatWrapper = ({ isDarkTheme, currentUser, setCurrentUser, onClose }) => {
 
   const handleQuickLogin = async (member) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/login/${member.id}`, {
+      const res = await fetch(`${API_URL}/api/login/${member.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: member.password || '123' })

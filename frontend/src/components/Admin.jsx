@@ -4,6 +4,7 @@ import shieldIcon from '@iconify/icons-mdi/shield';
 import accountPlusIcon from '@iconify/icons-mdi/account-plus';
 import deleteIcon from '@iconify/icons-mdi/delete';
 import uploadIcon from '@iconify/icons-mdi/upload';
+import { API_URL } from '../config';
 import './Admin.css';
 
 const Admin = ({ isDarkTheme }) => {
@@ -28,7 +29,7 @@ const Admin = ({ isDarkTheme }) => {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/students');
+      const res = await fetch(`${API_URL}/api/students`);
       const data = await res.json();
       if (data.success) {
         setStudents(data.students);
@@ -67,7 +68,7 @@ const Admin = ({ isDarkTheme }) => {
     }
 
     try {
-      const res = await fetch('http://localhost:3001/api/admin/students', {
+      const res = await fetch(`${API_URL}/api/admin/students`, {
         method: 'POST',
         credentials: 'include',
         body: formDataToSend
@@ -93,7 +94,7 @@ const Admin = ({ isDarkTheme }) => {
     if (!window.confirm('Delete this student?')) return;
     
     try {
-      await fetch(`http://localhost:3001/api/admin/students/${id}`, {
+      await fetch(`${API_URL}/api/admin/students/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });

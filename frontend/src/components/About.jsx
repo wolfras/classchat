@@ -5,13 +5,14 @@ import trophyIcon from '@iconify/icons-mdi/trophy';
 import accountGroupIcon from '@iconify/icons-mdi/account-group';
 import starIcon from '@iconify/icons-mdi/star';
 import './About.css';
+import { API_URL } from '../config';
 
 const About = ({ isDarkTheme }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/students')
+    fetch(`${API_URL}/api/students`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
