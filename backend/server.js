@@ -47,9 +47,7 @@ const server = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://*.vercel.app',           // Vercel preview deploys
-  'https://l3sod.vercel.app',       // Your Vercel domain (change this)
-  // Add your actual Vercel URL here after deployment
+  'https://classchat-fawn.vercel.app',
 ];
 
 const io = new Server(server, {
@@ -100,17 +98,18 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.set('trust proxy', 1);
 
 // Session configuration - Updated for production
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'l3sod-fallback-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'l3sod-fallback-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: isProduction,           // true in production (HTTPS only)
+    secure: isProduction,
     httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax',  // 'none' for cross-origin
-    maxAge: 24 * 60 * 60 * 1000    // 24 hours
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 

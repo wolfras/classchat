@@ -22,7 +22,7 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch('${API_URL}/api/students');
+      const res = await fetch(`${API_URL}/api/students`);
       const data = await res.json();
       if (data.success) {
         setStudents(data.students);
