@@ -11,6 +11,8 @@ const About = ({ isDarkTheme }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
+  
   useEffect(() => {
     fetch(`${API_URL}/api/students`)
       .then(res => res.json())
