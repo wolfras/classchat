@@ -6,7 +6,7 @@ import About from './components/About';
 import Gallery from './components/Gallery';
 import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
-import ChatWrapper from './components/ChatWrapper';
+ // import ChatWrapper from './components/ChatWrapper';
 import LoginPage from './components/LoginPage';
 import ChatPage from './components/ChatPage';
 import './App.css';
@@ -54,15 +54,7 @@ function App() {
 </Routes>
         </main>
 
-        {/* Chat Widget - shown when chat button is clicked */}
-        {showChat && (
-          <ChatWrapper 
-            isDarkTheme={isDarkTheme}
-            currentUser={currentUser}
-            setCurrentUser={setCurrentUser}
-            onClose={() => setShowChat(false)}
-          />
-        )}
+      
       </div>
     </Router>
   );
