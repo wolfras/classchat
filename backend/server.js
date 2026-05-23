@@ -632,34 +632,6 @@ app.post('/api/gallery', upload.single('image'), async (req, res) => {
 });
 
 
-// ==================== DATABASE SETUP ENDPOINT ====================
-app.get('/api/setup-db', async (req, res) => {
-  try {
-    // Create all tables
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS class_users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, password VARCHAR(255) NOT NULL, full_name VARCHAR(100), is_admin BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-      CREATE TABLE IF NOT EXISTS students (id SERIAL PRIMARY KEY, full_name VARCHAR(100) NOT NULL, role VARCHAR(100), email VARCHAR(150), bio TEXT, skills TEXT[], photo BYTEA, photo_mime_type VARCHAR(50), status VARCHAR(20) DEFAULT 'offline', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-      CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES class_users(id) ON DELETE CASCADE, username VARCHAR(100), message_text TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-      CREATE TABLE IF NOT EXISTS private_messages (id SERIAL PRIMARY KEY, sender_id INTEGER REFERENCES class_users(id) ON DELETE CASCADE, sender_name VARCHAR(100), receiver_id INTEGER REFERENCES class_users(id) ON DELETE CASCADE, receiver_name VARCHAR(100), message_text TEXT NOT NULL, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-    `);
-    
-    const adminHash = await bcrypt.hash('admin123', 10);
-    const studentHash = await bcrypt.hash('student123', 10);
-    
-    await pool.query(`INSERT INTO class_users (username, password, full_name, is_admin) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, ['admin', adminHash, 'Administrator', true]);
-    
-    const students = ['Uwayezu Ange Noella','Uwamwezi Doreen','Isheja Rene Gaella','Ngabire Moreen','Bizimana Uwase Hope','Mukeshimana Kevin','Munyana Justine','Akanshemeza Allen','Mugisha Ishaqa','Izabayo Samuel','Byiringiro Elie','Imanirumva Pacifique','Umutoni Uwase Belyse Kellia','Tuyubahe Odile','Rucyerereza Edith','Cyuzuzo Kelly','Mucyo Kenedy','Muneza Peter','Mugisha Musabu','Uwarugira Danny','Gisubizo Karegeya Frank','Ntirenganya Janvier','Umugwaneza Johnson Heritier','Iranzi Dorcas Ketia','Muhire Manzi Prince Loic','Irakoze Mugisha Yves','Igihozo Shukuru Inesta','Sharangabo Kevin','Iyakaremye Blaise','Nyiramahirwe Debora','Irera Tracy Etoile','Niyonsenga Honorine','Ineza Shami Nice Caline','Irambona Antoinette','Gihozo Anny','Musengamana Louange','Ishimwe Bonnete','Cyubahiro Alain','Kirenga Ntaganda Regis','Umwamikazi Musonera Angel','Gisa Vassily','Sinibagiwe Assouman','Aganze Danny Leamer','Igena Meira Dania','Uwajambo Kabera Faustine','Abijuru Hosiane','Majyambere Naomie Ornella','Kamanzi Ikirezi Liza Ornella','Uwiragiye Jennifer','Uwangabire Henriette','Kimenyi Merveille','Ihabwicyubahiro Keza Cellia','Ineza Peace Sandra Flovi','Umwiza Patience','Nshuti Bennita','Mugwaneza Shania','Nsengiyumva Alafati','Dushimimana Yvan','Muhorakeye Kirenzi Godeleine','Ufiteyezu Caleb Nashukulu','Akaliza Hobine','Mugisha Emmanuel','Mugisha Yvan'];
-    
-    for (const name of students) {
-      const username = name.toLowerCase().replace(/ /g, '.');
-      await pool.query(`INSERT INTO class_users (username, password, full_name, is_admin) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, [username, studentHash, name, false]);
-    }
-    
-    res.json({ success: true, message: `Setup complete! ${students.length} students created.` });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
-  }
-});
 
 // ==================== SOCKET.IO ====================
 
