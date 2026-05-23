@@ -9,6 +9,7 @@ import rocketIcon from '@iconify/icons-mdi/rocket';
 import chatIcon from '@iconify/icons-mdi/chat';
 import circleIcon from '@iconify/icons-mdi/circle';
 import { API_URL } from '../config';
+import { SOCKET_URL } from '../config';
 import './Home.css';
 
 

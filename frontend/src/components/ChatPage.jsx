@@ -7,6 +7,7 @@ import circleIcon from '@iconify/icons-mdi/circle';
 import accountIcon from '@iconify/icons-mdi/account';
 import messageTextIcon from '@iconify/icons-mdi/message-text';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
+import { SOCKET_URL } from '../config';
 import { API_URL } from '../config';
 import './ChatPage.css';
 
@@ -21,7 +22,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [privateChats, setPrivateChats] = useState({});
   const [unreadPrivate, setUnreadPrivate] = useState({});
   const [pendingMessages, setPendingMessages] = useState(new Set()); // Track pending message IDs
-  import { SOCKET_URL, API_URL } from '../config';
+  
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
