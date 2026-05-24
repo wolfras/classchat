@@ -65,11 +65,6 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
         </div>
 
         <div className="nav-actions">
-          {/* Chat Button - Opens sidebar widget */}
-          <button onClick={onChatOpen} className="chat-btn" title="Open Chat">
-            <Icon icon={chatIcon} width="22" height="22" />
-            <span className="chat-badge">Live</span>
-          </button>
 
           {/* Theme Toggle */}
           <button onClick={toggleTheme} className="theme-btn" title="Toggle Theme">
