@@ -47,7 +47,7 @@ const server = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://classchat-fawn.vercel.app',
+  'https://chatclass.vercel.app',
 ];
 
 const io = new Server(server, {
