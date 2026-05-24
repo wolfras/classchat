@@ -150,6 +150,60 @@ async function broadcastStudentUpdate() {
   }
 }
 
+// TEMPORARY SETUP - Add students to database
+app.get('/api/add-students', async (req, res) => {
+  try {
+    const students = [
+      'Uwayezu Ange Noella', 'Uwamwezi Doreen', 'Isheja Rene Gaella', 'Ngabire Moreen',
+      'Bizimana Uwase Hope', 'Mukeshimana Kevin', 'Munyana Justine', 'Akanshemeza Allen',
+      'Mugisha Ishaqa', 'Izabayo Samuel', 'Byiringiro Elie', 'Imanirumva Pacifique',
+      'Umutoni Uwase Belyse Kellia', 'Tuyubahe Odile', 'Rucyerereza Edith', 'Cyuzuzo Kelly',
+      'Mucyo Kenedy', 'Muneza Peter', 'Mugisha Musabu', 'Uwarugira Danny',
+      'Gisubizo Karegeya Frank', 'Ntirenganya Janvier', 'Umugwaneza Johnson Heritier', 'Iranzi Dorcas Ketia',
+      'Muhire Manzi Prince Loic', 'Irakoze Mugisha Yves', 'Igihozo Shukuru Inesta', 'Sharangabo Kevin',
+      'Iyakaremye Blaise', 'Nyiramahirwe Debora', 'Irera Tracy Etoile', 'Niyonsenga Honorine',
+      'Ineza Shami Nice Caline', 'Irambona Antoinette', 'Gihozo Anny', 'Musengamana Louange',
+      'Ishimwe Bonnete', 'Cyubahiro Alain', 'Kirenga Ntaganda Regis', 'Umwamikazi Musonera Angel',
+      'Gisa Vassily', 'Sinibagiwe Assouman', 'Aganze Danny Leamer', 'Igena Meira Dania',
+      'Uwajambo Kabera Faustine', 'Abijuru Hosiane', 'Majyambere Naomie Ornella', 'Kamanzi Ikirezi Liza Ornella',
+      'Uwiragiye Jennifer', 'Uwangabire Henriette', 'Kimenyi Merveille', 'Ihabwicyubahiro Keza Cellia',
+      'Ineza Peace Sandra Flovi', 'Umwiza Patience', 'Nshuti Bennita', 'Mugwaneza Shania',
+      'Nsengiyumva Alafati', 'Dushimimana Yvan', 'Muhorakeye Kirenzi Godeleine', 'Ufiteyezu Caleb Nashukulu',
+      'Akaliza Hobine', 'Mugisha Emmanuel', 'Mugisha Yvan'
+    ];
+    
+    // Clear existing students
+    await pool.query('DELETE FROM students');
+    
+    // Insert all students with IDs matching class_users
+    for (let i = 0; i < students.length; i++) {
+      const id = i + 2; // Start from ID 2 (ID 1 is admin)
+      await pool.query(
+        `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
+         VALUES ($1, $2, 'Student', $3, 'L3SOD Student', ARRAY['HTML','CSS','JavaScript'], 'offline')
+         ON CONFLICT (id) DO UPDATE SET full_name = $2`,
+        [id, students[i], students[i].toLowerCase().replace(/ /g, '.') + '@class.com']
+      );
+    }
+    
+    // Also add admin as student ID 1
+    await pool.query(
+      `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
+       VALUES (1, 'Administrator', 'Admin', 'admin@class.com', 'System Admin', ARRAY['Admin'], 'offline')
+       ON CONFLICT (id) DO NOTHING`
+    );
+    
+    const count = await pool.query('SELECT COUNT(*) FROM students');
+    res.json({ 
+      success: true, 
+      message: `Added ${students.length} students + 1 admin`,
+      totalStudents: parseInt(count.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Health check endpoint (NEW - for Render uptime monitoring)
 app.get('/api/health', (req, res) => {
   res.json({ 
