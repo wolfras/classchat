@@ -306,3 +306,51 @@
     font-size: 2rem;
   }
 }
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .about-hero,
+  .mission-section,
+  .specializations-section,
+  .achievements-section,
+  .team-preview-section {
+    padding: 2rem 1rem;
+  }
+
+  .about-hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .mission-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .specs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .section-header h2 {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .specs-grid,
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-hero-content h1 {
+    font-size: 1.6rem;
+  }
+}
+

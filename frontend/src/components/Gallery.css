@@ -504,3 +504,114 @@
     gap: 0.75rem;
   }
 }
+
+/* ==================== RESPONSIVE ==================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .gallery-hero,
+  .gallery-controls,
+  .students-grid-section {
+    padding: 2rem 1.5rem;
+  }
+
+  .students-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+
+  .gallery-hero h1 {
+    font-size: 2.2rem;
+  }
+}
+
+/* Phone */
+@media (max-width: 768px) {
+  .gallery-hero {
+    padding: 1.5rem 1rem;
+  }
+
+  .gallery-hero h1 {
+    font-size: 1.8rem;
+  }
+
+  .gallery-hero p {
+    font-size: 1rem;
+  }
+
+  .gallery-controls {
+    padding: 1rem;
+  }
+
+  .students-grid-section {
+    padding: 1rem;
+  }
+
+  .students-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .student-card {
+    border-radius: 12px;
+  }
+
+  .student-photo-placeholder .student-initials {
+    font-size: 2rem;
+  }
+
+  .student-info {
+    padding: 0.75rem;
+  }
+
+  .student-name {
+    font-size: 0.9rem;
+  }
+
+  .filter-buttons {
+    gap: 0.35rem;
+  }
+
+  .filter-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  /* Modal responsive */
+  .student-modal {
+    max-width: 95%;
+    max-height: 85vh;
+  }
+
+  .modal-info {
+    padding: 1.5rem;
+  }
+
+  .modal-info h2 {
+    font-size: 1.4rem;
+  }
+
+  .modal-photo-placeholder .modal-initials {
+    font-size: 4rem;
+  }
+}
+
+/* Small Phone */
+@media (max-width: 480px) {
+  .students-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .student-card {
+    padding: 0;
+  }
+
+  .student-info {
+    padding: 0.5rem;
+  }
+
+  .gallery-hero h1 {
+    font-size: 1.5rem;
+  }
+}

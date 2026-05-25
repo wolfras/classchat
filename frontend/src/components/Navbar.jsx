@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import homeIcon from '@iconify/icons-mdi/home';
@@ -11,12 +11,15 @@ import moonWaningCrescent from '@iconify/icons-mdi/moon-waning-crescent';
 import accountIcon from '@iconify/icons-mdi/account';
 import logoutIcon from '@iconify/icons-mdi/logout';
 import loginIcon from '@iconify/icons-mdi/login';
+import menuIcon from '@iconify/icons-mdi/menu';
+import closeIcon from '@iconify/icons-mdi/close';
 import { API_URL } from '../config';
 import './Navbar.css';
 
 const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await fetch(`${API_URL}/api/logout`, { 
@@ -25,7 +28,10 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
     });
     setCurrentUser(null);
     navigate('/');
+    setMobileMenuOpen(false);
   };
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const navLinks = [
     { path: '/chat', icon: chatIcon, label: 'Chat' },
@@ -37,17 +43,26 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <Link to="/" className="nav-logo">
+        <Link to="/" className="nav-logo" onClick={closeMobileMenu}>
           <span className="logo-text">L3SOD</span>
           <span className="logo-subtext">Portfolio</span>
         </Link>
 
-        <div className="nav-links">
+        <button 
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <Icon icon={mobileMenuOpen ? closeIcon : menuIcon} width="24" height="24" />
+        </button>
+
+        <div className={`nav-links ${mobileMenuOpen ? 'open' : ''}`}>
           {navLinks.map(link => (
             <Link
               key={link.path}
               to={link.path}
               className={`nav-link ${location.pathname === link.path ? 'active' : ''}`}
+              onClick={closeMobileMenu}
             >
               <Icon icon={link.icon} width="20" height="20" />
               <span>{link.label}</span>
@@ -57,6 +72,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
             <Link
               to="/admin"
               className={`nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
+              onClick={closeMobileMenu}
             >
               <Icon icon={shieldIcon} width="20" height="20" />
               <span>Admin</span>
@@ -65,8 +81,6 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
         </div>
 
         <div className="nav-actions">
-
-          {/* Theme Toggle */}
           <button onClick={toggleTheme} className="theme-btn" title="Toggle Theme">
             <Icon 
               icon={isDarkTheme ? whiteBalanceSunny : moonWaningCrescent} 
@@ -75,7 +89,6 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
           </button>
 
           {currentUser ? (
-            /* User is logged in */
             <div className="user-menu">
               <Icon icon={accountIcon} width="20" height="20" />
               <span>{currentUser.username || currentUser.name}</span>
@@ -84,14 +97,17 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser, onChatO
               </button>
             </div>
           ) : (
-            /* User is NOT logged in - Show Login button that redirects to login page */
-            <Link to="/login" className="login-btn-nav">
+            <Link to="/login" className="login-btn-nav" onClick={closeMobileMenu}>
               <Icon icon={loginIcon} width="20" height="20" />
               <span>Login</span>
             </Link>
           )}
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <div className="mobile-overlay" onClick={closeMobileMenu}></div>
+      )}
     </nav>
   );
 };
