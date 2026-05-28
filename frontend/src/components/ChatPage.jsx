@@ -7,6 +7,7 @@ import circleIcon from '@iconify/icons-mdi/circle';
 import accountIcon from '@iconify/icons-mdi/account';
 import messageTextIcon from '@iconify/icons-mdi/message-text';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
+import menuIcon from '@iconify/icons-mdi/menu';
 import { SOCKET_URL } from '../config';
 import { API_URL } from '../config';
 import './ChatPage.css';
@@ -21,7 +22,8 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [privateChats, setPrivateChats] = useState({});
   const [unreadPrivate, setUnreadPrivate] = useState({});
-  const [pendingMessages, setPendingMessages] = useState(new Set()); // Track pending message IDs
+  const [pendingMessages, setPendingMessages] = useState(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(false); // NEW: Mobile sidebar toggle
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -40,17 +42,12 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
       name: currentUser.fullName || currentUser.username
     });
 
-    // Group message history
     newSocket.on('message_history', (history) => {
-      console.log('📜 Group history loaded:', history.length, 'messages');
       setGroupMessages(history || []);
     });
 
-    // New group message (from others)
     newSocket.on('new_message', (msg) => {
-      // Don't add if it's our own confirmed message
       if (msg.confirmed) {
-        // Remove from pending
         setPendingMessages(prev => {
           const updated = new Set(prev);
           updated.delete(msg.id);
@@ -58,17 +55,13 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         });
         return;
       }
-      
-      // Only add if not already in the list
       setGroupMessages(prev => {
         if (prev.some(m => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
     });
 
-    // Private message history
     newSocket.on('private_message_history', (history) => {
-      console.log('📜 Private history loaded:', history.length, 'messages');
       const chats = {};
       history.forEach(msg => {
         const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
@@ -80,14 +73,10 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
       setPrivateChats(prev => ({ ...prev, ...chats }));
     });
 
-    // Incoming private message (from other user)
     newSocket.on('private_message', (msg) => {
-      console.log('📩 Received private message from:', msg.sender_name);
       const otherUserId = msg.sender_id;
-      
       setPrivateChats(prev => {
         const existing = prev[otherUserId] || { user: null, messages: [] };
-        // Check if message already exists
         if (existing.messages.some(m => m.id === msg.id)) return prev;
         return {
           ...prev,
@@ -97,19 +86,15 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
           }
         };
       });
-
-      // Show unread indicator
       if (!selectedUser || selectedUser.id !== otherUserId) {
         setUnreadPrivate(prev => ({ ...prev, [otherUserId]: true }));
       }
     });
 
-    // Confirmation that our private message was sent
     newSocket.on('private_message_sent', (data) => {
-      console.log('✅ Message sent confirmation:', data.id, 'Delivered:', data.delivered);
+      console.log('✅ Message sent:', data.id, 'Delivered:', data.delivered);
     });
 
-    // Student updates
     newSocket.on('students_updated', (students) => {
       setAllStudents(students || []);
       setOnlineUsers((students || []).filter(s => s.status === 'online'));
@@ -146,6 +131,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
 
   const handleSelectUser = (user) => {
     setSelectedUser(user);
+    setSidebarOpen(false); // Close sidebar on mobile when selecting user
     setUnreadPrivate(prev => {
       const updated = { ...prev };
       delete updated[user.id];
@@ -168,7 +154,6 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
     const messageText = inputMessage.trim();
 
     if (selectedUser) {
-      // PRIVATE MESSAGE
       const tempId = 'temp_' + Date.now();
       const newMsg = {
         id: tempId,
@@ -182,7 +167,6 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         pending: true
       };
 
-      // Add to local state immediately
       setPrivateChats(prev => {
         const existing = prev[selectedUser.id] || { user: selectedUser, messages: [] };
         return {
@@ -194,7 +178,6 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         };
       });
 
-      // Send via socket
       socket.emit('private_message', {
         from: currentUser.id,
         fromName: currentUser.fullName || currentUser.username,
@@ -203,7 +186,6 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         text: messageText
       });
     } else {
-      // GROUP MESSAGE
       const tempId = 'temp_' + Date.now();
       const newMsg = {
         id: tempId,
@@ -214,11 +196,9 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         pending: true
       };
 
-      // Add to local state immediately
       setGroupMessages(prev => [...prev, newMsg]);
       setPendingMessages(prev => new Set(prev).add(tempId));
 
-      // Send via socket
       socket.emit('send_message', {
         userId: currentUser.id,
         username: currentUser.fullName || currentUser.username,
@@ -261,13 +241,13 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   return (
     <div className="chat-page">
       <div className="chat-page-container">
-        {/* Sidebar - same as before */}
-        <div className="chat-sidebar">
+        {/* Sidebar */}
+        <div className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="chat-sidebar-header">
             <h3><Icon icon={messageTextIcon} width="22" height="22" /> Messages</h3>
           </div>
 
-          <button className={`chat-tab group-tab ${!selectedUser ? 'active' : ''}`} onClick={handleBackToGroup}>
+          <button className={`chat-tab group-tab ${!selectedUser ? 'active' : ''}`} onClick={() => { handleBackToGroup(); setSidebarOpen(false); }}>
             <div className="tab-icon"><Icon icon={accountGroupIcon} width="22" height="22" /></div>
             <div className="tab-info">
               <span className="tab-name">Class Group</span>
@@ -327,6 +307,15 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
         {/* Main Chat */}
         <div className="chat-main">
           <div className="chat-main-header">
+            {/* Mobile Sidebar Toggle Button */}
+            <button 
+              className="mobile-sidebar-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle sidebar"
+            >
+              <Icon icon={menuIcon} width="22" height="22" />
+            </button>
+
             {selectedUser ? (
               <div className="chat-header-private">
                 <button className="back-btn-chat" onClick={handleBackToGroup}>
@@ -355,7 +344,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
             )}
           </div>
 
-          <div className="chat-messages">
+          <div className="chat-messages" onClick={() => setSidebarOpen(false)}>
             {currentMessages.length === 0 ? (
               <div className="no-messages">
                 <Icon icon={selectedUser ? accountIcon : accountGroupIcon} width="48" height="48" />
@@ -399,6 +388,11 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
             </button>
           </form>
         </div>
+
+        {/* Mobile overlay when sidebar is open */}
+        {sidebarOpen && (
+          <div className="mobile-sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+        )}
       </div>
     </div>
   );
