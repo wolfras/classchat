@@ -1,145 +1,280 @@
+/* ==================== ROOT CSS VARIABLES ==================== */
+:root {
+  /* Responsive spacing scale */
+  --spacing-xs: clamp(0.5rem, 1vw, 0.75rem);
+  --spacing-sm: clamp(0.75rem, 2vw, 1rem);
+  --spacing-md: clamp(1rem, 3vw, 1.5rem);
+  --spacing-lg: clamp(1.5rem, 4vw, 2rem);
+  --spacing-xl: clamp(2rem, 5vw, 3rem);
+  --spacing-2xl: clamp(3rem, 6vw, 4rem);
+
+  /* Responsive font sizes */
+  --font-xs: clamp(0.7rem, 1vw, 0.8rem);
+  --font-sm: clamp(0.8rem, 1.2vw, 0.95rem);
+  --font-base: clamp(0.9rem, 1.5vw, 1rem);
+  --font-lg: clamp(1rem, 1.8vw, 1.2rem);
+  --font-xl: clamp(1.3rem, 2.5vw, 1.6rem);
+  --font-2xl: clamp(1.6rem, 3.5vw, 2rem);
+  --font-3xl: clamp(2rem, 4.5vw, 2.5rem);
+  --font-4xl: clamp(2.5rem, 5.5vw, 3rem);
+
+  /* Responsive icon sizes */
+  --icon-sm: clamp(16px, 4vw, 18px);
+  --icon-md: clamp(18px, 5vw, 24px);
+  --icon-lg: clamp(24px, 6vw, 32px);
+  --icon-xl: clamp(32px, 8vw, 40px);
+
+  /* Section padding */
+  --section-padding: clamp(1.5rem, 5vw, 4rem);
+  --section-padding-horizontal: clamp(1rem, 3vw, 2rem);
+}
+
+/* ==================== BASE STYLES ==================== */
 .about {
   animation: fadeInUp 0.5s ease-out;
+  overflow-x: hidden;
 }
 
-/* Hero */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== HERO SECTION ==================== */
 .about-hero {
-  padding: 6rem 4rem;
+  padding: var(--section-padding) var(--section-padding-horizontal);
   background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(167, 139, 250, 0.02));
   text-align: center;
+  transition: background 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.about-hero-content h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  color: var(--text-primary);
+.about-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.03), transparent 70%);
+  pointer-events: none;
 }
 
-.about-hero-content p {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  max-width: 600px;
+.about-hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
   margin: 0 auto;
 }
 
-/* Mission */
+.about-hero-content h1 {
+  font-size: var(--font-4xl);
+  font-weight: 800;
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.5rem, 2vw, 1rem);
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  flex-wrap: wrap;
+}
+
+.about-hero-content p {
+  font-size: var(--font-lg);
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ==================== MISSION SECTION ==================== */
 .mission-section {
-  padding: 4rem;
+  padding: var(--section-padding) var(--section-padding-horizontal);
 }
 
 .mission-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(250px, 30vw, 350px), 1fr));
+  gap: clamp(1.5rem, 3vw, 2rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .mission-card {
-  padding: 2.5rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   text-align: center;
-  transition: var(--transition-smooth);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mission-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .mission-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
   box-shadow: var(--shadow-lg);
   border-color: var(--accent-purple);
 }
 
+.mission-card:hover::before {
+  opacity: 1;
+}
+
 .mission-icon {
-  width: 70px;
-  height: 70px;
+  width: clamp(50px, 12vw, 70px);
+  height: clamp(50px, 12vw, 70px);
   border-radius: 50%;
   background: rgba(124, 58, 237, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto var(--spacing-md);
   color: var(--accent-purple);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.mission-card:hover .mission-icon {
+  transform: scale(1.1) rotate(5deg);
+  background: rgba(124, 58, 237, 0.2);
 }
 
 .mission-card h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: var(--font-xl);
+  margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
 }
 
 .mission-card p {
   color: var(--text-secondary);
   line-height: 1.7;
+  font-size: var(--font-sm);
+  position: relative;
+  z-index: 1;
+  flex-grow: 1;
 }
 
-/* Specializations */
+/* ==================== SPECIALIZATIONS SECTION ==================== */
 .specializations-section {
-  padding: 4rem;
+  padding: var(--section-padding) var(--section-padding-horizontal);
   background: var(--bg-secondary);
+  transition: background 0.3s ease;
 }
 
 .section-header {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: clamp(2rem, 5vw, 3rem);
+  animation: fadeInUp 0.6s ease-out 0.1s backwards;
 }
 
 .section-header h2 {
-  font-size: 2.5rem;
+  font-size: var(--font-4xl);
   font-weight: 800;
-  margin-bottom: 0.5rem;
+  margin-bottom: clamp(0.5rem, 1vw, 0.75rem);
   color: var(--text-primary);
+  letter-spacing: -0.5px;
 }
 
 .section-header p {
   color: var(--text-secondary);
-  font-size: 1.1rem;
+  font-size: var(--font-lg);
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
 }
 
 .specs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 22vw, 220px), 1fr));
+  gap: clamp(1rem, 2.5vw, 1.5rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .spec-card {
-  padding: 2rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   text-align: center;
-  transition: var(--transition-smooth);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+}
+
+.spec-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .spec-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--spec-color);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.15);
+  border-color: var(--border-color);
+}
+
+.spec-card:hover::after {
+  opacity: 1;
 }
 
 .spec-icon-wrapper {
-  width: 60px;
-  height: 60px;
+  width: clamp(45px, 10vw, 60px);
+  height: clamp(45px, 10vw, 60px);
   border-radius: 50%;
   background: rgba(124, 58, 237, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1rem;
-  font-size: 2rem;
+  margin: 0 auto var(--spacing-md);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.spec-card:hover .spec-icon-wrapper {
+  transform: scale(1.15) rotate(-10deg);
+  background: rgba(124, 58, 237, 0.2);
 }
 
 .spec-card h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-base);
+  margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
 }
 
 .spec-count {
@@ -148,178 +283,242 @@
   justify-content: center;
   gap: 0.5rem;
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+  font-size: var(--font-xs);
+  margin-bottom: var(--spacing-sm);
+  position: relative;
+  z-index: 1;
 }
 
 .spec-bar {
-  height: 6px;
+  height: clamp(4px, 0.8vw, 6px);
   background: var(--border-color);
   border-radius: 10px;
   overflow: hidden;
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .spec-bar-fill {
   height: 100%;
   border-radius: 10px;
-  transition: width 1s ease;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Achievements */
+/* ==================== ACHIEVEMENTS SECTION ==================== */
 .achievements-section {
-  padding: 4rem;
+  padding: var(--section-padding) var(--section-padding-horizontal);
 }
 
 .achievements-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(200px, 25vw, 280px), 1fr));
+  gap: clamp(1.25rem, 3vw, 1.5rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .achievement-card {
-  padding: 2rem;
+  padding: clamp(1.5rem, 3vw, 2rem);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
-  transition: var(--transition-smooth);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.achievement-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #7c3aed, #3b82f6);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 
 .achievement-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-6px);
   box-shadow: var(--shadow-lg);
 }
 
+.achievement-card:hover::before {
+  transform: scaleX(1);
+}
+
 .achievement-number {
-  font-size: 3rem;
+  font-size: clamp(2rem, 8vw, 3rem);
   font-weight: 900;
   color: rgba(124, 58, 237, 0.2);
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1;
 }
 
 .achievement-card h3 {
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-lg);
+  margin-bottom: var(--spacing-xs);
   color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .achievement-card p {
   color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+  flex-grow: 1;
 }
 
-/* Team Preview */
+/* ==================== TEAM PREVIEW SECTION ==================== */
 .team-preview-section {
-  padding: 4rem;
+  padding: var(--section-padding) var(--section-padding-horizontal);
   background: var(--bg-secondary);
 }
 
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 20vw, 200px), 1fr));
+  gap: clamp(1rem, 2.5vw, 1.5rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .team-member-card {
-  padding: 1.5rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   text-align: center;
-  transition: var(--transition-smooth);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.team-member-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .team-member-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
   box-shadow: var(--shadow-lg);
+  border-color: var(--accent-purple);
+}
+
+.team-member-card:hover::before {
+  opacity: 1;
 }
 
 .member-avatar {
-  width: 80px;
-  height: 80px;
+  width: clamp(60px, 12vw, 80px);
+  height: clamp(60px, 12vw, 80px);
   border-radius: 50%;
   overflow: hidden;
-  margin: 0 auto 1rem;
+  margin: 0 auto var(--spacing-md);
   border: 3px solid var(--accent-purple);
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.team-member-card:hover .member-avatar {
+  transform: scale(1.1);
+  box-shadow: 0 8px 16px rgba(124, 58, 237, 0.3);
 }
 
 .member-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.team-member-card:hover .member-avatar img {
+  transform: scale(1.05);
 }
 
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: var(--accent-purple);
+  background: linear-gradient(135deg, var(--accent-purple), #6d28d9);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 3vw, 1.3rem);
 }
 
 .team-member-card h3 {
-  font-size: 1rem;
+  font-size: var(--font-sm);
   color: var(--text-primary);
   margin-bottom: 0.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
+  word-break: break-word;
 }
 
 .team-member-card p {
-  font-size: 0.85rem;
+  font-size: var(--font-xs);
   color: var(--text-secondary);
+  position: relative;
+  z-index: 1;
 }
 
+/* ==================== LOADING STATES ==================== */
 .loading-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 20vw, 200px), 1fr));
+  gap: clamp(1rem, 2.5vw, 1.5rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .loading-card {
-  height: 200px;
+  height: clamp(180px, 25vw, 220px);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
-  animation: pulse 1.5s infinite;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@media (max-width: 768px) {
-  .mission-grid {
-    grid-template-columns: 1fr;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
   }
-  
-  .about-hero,
-  .mission-section,
-  .specializations-section,
-  .achievements-section,
-  .team-preview-section {
-    padding: 2rem 1rem;
-  }
-  
-  .about-hero-content h1 {
-    font-size: 2rem;
+  50% {
+    opacity: 0.5;
   }
 }
 
-/* ==================== RESPONSIVE ==================== */
+/* ==================== RESPONSIVE BREAKPOINTS ==================== */
 
+/* Tablets - 768px and below */
 @media (max-width: 768px) {
-  .about-hero,
-  .mission-section,
-  .specializations-section,
-  .achievements-section,
-  .team-preview-section {
-    padding: 2rem 1rem;
+  :root {
+    --section-padding: clamp(1.25rem, 4vw, 2.5rem);
+    --section-padding-horizontal: clamp(0.75rem, 3vw, 1.5rem);
   }
 
   .about-hero-content h1 {
-    font-size: 2rem;
+    font-size: var(--font-3xl);
   }
 
   .mission-grid {
@@ -339,18 +538,285 @@
   }
 
   .section-header h2 {
-    font-size: 1.8rem;
+    font-size: var(--font-3xl);
+  }
+
+  .mission-card {
+    min-height: auto;
   }
 }
 
+/* Small tablets - 600px to 768px */
+@media (max-width: 600px) {
+  :root {
+    --section-padding: clamp(1rem, 3.5vw, 2rem);
+    --section-padding-horizontal: clamp(0.75rem, 2.5vw, 1.25rem);
+  }
+
+  .about-hero-content h1 {
+    font-size: var(--font-2xl);
+    gap: 0.5rem;
+  }
+
+  .specs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .section-header h2 {
+    font-size: var(--font-2xl);
+  }
+
+  .section-header p {
+    font-size: var(--font-sm);
+  }
+}
+
+/* Mobile - 480px to 600px */
 @media (max-width: 480px) {
-  .specs-grid,
+  :root {
+    --section-padding: clamp(0.9rem, 3vw, 1.5rem);
+    --section-padding-horizontal: clamp(0.65rem, 2vw, 1rem);
+  }
+
+  .about-hero-content h1 {
+    font-size: var(--font-2xl);
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .about-hero-content p {
+    font-size: var(--font-base);
+  }
+
+  .mission-grid,
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .specs-grid {
+    grid-template-columns: 1fr;
+  }
+
   .team-grid {
     grid-template-columns: 1fr;
   }
 
-  .about-hero-content h1 {
-    font-size: 1.6rem;
+  .section-header h2 {
+    font-size: clamp(1.4rem, 5vw, 1.8rem);
+  }
+
+  .loading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-card,
+  .spec-card,
+  .achievement-card {
+    min-height: auto;
+  }
+
+  .mission-icon {
+    width: clamp(45px, 10vw, 55px);
+    height: clamp(45px, 10vw, 55px);
+  }
+
+  .spec-icon-wrapper {
+    width: clamp(40px, 8vw, 50px);
+    height: clamp(40px, 8vw, 50px);
+    font-size: clamp(1.2rem, 3.5vw, 1.6rem);
+  }
+
+  .member-avatar {
+    width: clamp(55px, 11vw, 70px);
+    height: clamp(55px, 11vw, 70px);
   }
 }
 
+/* Extra small phones - below 360px */
+@media (max-width: 360px) {
+  :root {
+    --section-padding: clamp(0.75rem, 2.5vw, 1.25rem);
+    --section-padding-horizontal: clamp(0.5rem, 1.5vw, 0.75rem);
+  }
+
+  .about-hero-content h1 {
+    font-size: clamp(1.3rem, 5vw, 1.6rem);
+  }
+
+  .section-header h2 {
+    font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+  }
+
+  .mission-card h3,
+  .achievement-card h3,
+  .spec-card h3 {
+    font-size: var(--font-sm);
+  }
+}
+
+/* ==================== LANDSCAPE ORIENTATION ==================== */
+@media (max-height: 600px) and (orientation: landscape) {
+  .about-hero {
+    padding: var(--spacing-lg) var(--section-padding-horizontal);
+  }
+
+  .about-hero-content h1 {
+    font-size: var(--font-2xl);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .about-hero-content p {
+    font-size: var(--font-sm);
+  }
+
+  .mission-section,
+  .specializations-section,
+  .achievements-section,
+  .team-preview-section {
+    padding: var(--spacing-lg) var(--section-padding-horizontal);
+  }
+
+  .section-header {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .section-header h2 {
+    font-size: var(--font-2xl);
+  }
+
+  .section-header p {
+    font-size: var(--font-sm);
+  }
+
+  .mission-grid,
+  .specs-grid,
+  .achievements-grid,
+  .team-grid {
+    gap: var(--spacing-md);
+  }
+}
+
+/* ==================== HIGH DPI / RETINA ==================== */
+@media (min-resolution: 2dppx) {
+  .mission-card,
+  .spec-card,
+  .achievement-card,
+  .team-member-card {
+    border-width: 0.5px;
+  }
+}
+
+/* ==================== REDUCED MOTION ==================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .mission-card:hover,
+  .spec-card:hover,
+  .achievement-card:hover,
+  .team-member-card:hover {
+    transform: none;
+  }
+
+  .about {
+    animation: none;
+  }
+}
+
+/* ==================== TOUCH DEVICE OPTIMIZATION ==================== */
+@media (hover: none) and (pointer: coarse) {
+  .mission-card,
+  .spec-card,
+  .achievement-card,
+  .team-member-card {
+    min-height: auto;
+  }
+
+  .mission-card:hover,
+  .spec-card:hover,
+  .achievement-card:hover,
+  .team-member-card:hover {
+    transform: none;
+  }
+
+  .mission-card:active,
+  .spec-card:active,
+  .achievement-card:active,
+  .team-member-card:active {
+    background: rgba(124, 58, 237, 0.05);
+  }
+
+  .mission-icon,
+  .spec-icon-wrapper {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* ==================== DARK MODE SPECIFIC ==================== */
+.about {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .about-hero {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(167, 139, 250, 0.03));
+  }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+@media (prefers-contrast: more) {
+  .mission-card,
+  .spec-card,
+  .achievement-card,
+  .team-member-card {
+    border-width: 2px;
+  }
+
+  .section-header h2 {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.5rem;
+  }
+}
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+  .about {
+    background: white;
+  }
+
+  .about-hero {
+    page-break-after: always;
+  }
+
+  .mission-card:hover,
+  .spec-card:hover,
+  .achievement-card:hover,
+  .team-member-card:hover {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .mission-grid,
+  .specs-grid,
+  .achievements-grid,
+  .team-grid {
+    page-break-inside: avoid;
+  }
+}

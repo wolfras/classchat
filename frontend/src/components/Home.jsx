@@ -12,8 +12,6 @@ import { API_URL } from '../config';
 import { SOCKET_URL } from '../config';
 import './Home.css';
 
-
-
 const Home = ({ isDarkTheme }) => {
   const [stats, setStats] = useState({
     students: 76,
@@ -22,12 +20,9 @@ const Home = ({ isDarkTheme }) => {
     projects: 12
   });
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Connect to socket for real-time updates
     const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
 
     // Fetch initial data
     fetch(`${API_URL}/api/students`)
@@ -35,22 +30,20 @@ const Home = ({ isDarkTheme }) => {
       .then(data => {
         if (data.success) {
           const online = data.students.filter(s => s.status === 'online').length;
-          const onlineList = data.students.filter(s => s.status === 'online');
           setStats(prev => ({ ...prev, online, students: data.students.length }));
-          setOnlineUsers(onlineList);
+          setOnlineUsers(data.students.filter(s => s.status === 'online'));
         }
       })
       .catch(err => console.error('Error fetching stats:', err));
 
-    // Listen for real-time student updates
+    // Real-time updates
     newSocket.on('students_updated', (students) => {
       const online = students.filter(s => s.status === 'online').length;
-      const onlineList = students.filter(s => s.status === 'online');
       setStats(prev => ({ ...prev, online, students: students.length }));
-      setOnlineUsers(onlineList);
+      setOnlineUsers(students.filter(s => s.status === 'online'));
     });
 
-    // Fetch message count
+    // Fetch messages count
     fetch(`${API_URL}/api/messages`)
       .then(res => res.json())
       .then(data => {
@@ -60,26 +53,7 @@ const Home = ({ isDarkTheme }) => {
       })
       .catch(() => {});
 
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
-
-  // Update stats every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetch(`${API_URL}/api/students`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            const online = data.students.filter(s => s.status === 'online').length;
-            setStats(prev => ({ ...prev, online, students: data.students.length }));
-          }
-        })
-        .catch(() => {});
-    }, 30000);
-
-    return () => clearInterval(interval);
+    return () => newSocket.disconnect();
   }, []);
 
   return (
@@ -113,6 +87,7 @@ const Home = ({ isDarkTheme }) => {
             </Link>
           </div>
         </div>
+
         <div className="hero-visual">
           <div className="floating-card card-1">
             <Icon icon={codeBracesIcon} width="32" height="32" />
@@ -204,21 +179,21 @@ const Home = ({ isDarkTheme }) => {
               <Icon icon={accountGroupIcon} width="40" height="40" />
             </div>
             <h3>Student Profiles</h3>
-            <p>Browse through detailed profiles of all {stats.students} class members with their skills and expertise.</p>
+            <p>Browse through detailed profiles of all {stats.students} class members.</p>
           </Link>
           <div className="feature-card">
             <div className="feature-icon">
               <Icon icon={codeBracesIcon} width="40" height="40" />
             </div>
             <h3>Project Gallery</h3>
-            <p>Showcase your projects, code snippets, and creative work. Get feedback from classmates.</p>
+            <p>Showcase your projects, code snippets, and creative work.</p>
           </div>
           <Link to="/chat" className="feature-card">
             <div className="feature-icon">
               <Icon icon={chatIcon} width="40" height="40" />
             </div>
             <h3>Real-time Chat</h3>
-            <p>Connect instantly with classmates. Group chat and private messaging available.</p>
+            <p>Connect instantly with classmates. Group & private messaging.</p>
           </Link>
         </div>
       </section>
@@ -235,7 +210,7 @@ const Home = ({ isDarkTheme }) => {
             </Link>
             <Link to="/gallery" className="btn-secondary">
               <Icon icon={accountGroupIcon} width="20" height="20" />
-              <span>View Gallery</span>
+              <span>View Gallery</span> 
             </Link>
           </div>
         </div>
