@@ -185,11 +185,7 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
               </button>
             </form>
 
-            {/* Login Help */}
-            <div className="login-help">
-              <p><strong>Admin:</strong> username: <code>admin</code> | password: <code>admin123</code></p>
-              <p><strong>Students:</strong> username: <code>mugisha.ishaqa</code> | password: <code>student123</code></p>
-            </div>
+          
           </div>
         </div>
       </div>
