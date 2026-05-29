@@ -187,7 +187,6 @@ app.get('/api/members', async (req, res) => {
 // ==================== AUTH ROUTES ====================
 
 // Login endpoint
-// Login endpoint - FIXED
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -214,29 +213,6 @@ app.post('/api/login', async (req, res) => {
     }
     
     console.log('✅ Password matches!');
-    
-    // Set session
-    req.session.userId = user.id;
-    req.session.username = user.username;
-    req.session.isAdmin = user.is_admin;
-    req.session.fullName = user.full_name;
-    
-    console.log('✅ Login successful:', user.username, '| Admin:', user.is_admin);
-    
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        fullName: user.full_name,
-        isAdmin: user.is_admin
-      }
-    });
-  } catch (error) {
-    console.error('🔥 Login error:', error);
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
-  }
-});
     
     // Set session
     req.session.userId = user.id;
@@ -646,8 +622,6 @@ app.post('/api/gallery', upload.single('image'), async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-
 
 // ==================== SOCKET.IO ====================
 
