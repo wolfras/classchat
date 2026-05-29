@@ -780,7 +780,29 @@ app.use((err, req, res, next) => {
   });
 });
 
-
+// TEMPORARY - Password fix endpoint
+app.get('/api/fix-passwords', async (req, res) => {
+  try {
+    // Update admin
+    await pool.query(`UPDATE class_users SET password = 'adminL3SOD@2024' WHERE username = 'admin'`);
+    
+    // Update all students with their unique passwords
+    const students = await pool.query(`SELECT id, full_name FROM class_users WHERE is_admin = FALSE OR (is_admin = TRUE AND username != 'admin')`);
+    
+    for (const s of students.rows) {
+      const firstName = s.full_name.split(' ')[0].toLowerCase();
+      const newPassword = firstName + 'L3SOD@' + s.id;
+      await pool.query(`UPDATE class_users SET password = $1 WHERE id = $2`, [newPassword, s.id]);
+    }
+    
+    // Update teachers
+    await pool.query(`UPDATE class_users SET password = 'teacherL3SOD@2024' WHERE is_admin = TRUE AND username != 'admin'`);
+    
+    res.json({ success: true, message: 'All passwords updated!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Start server
 const PORT = process.env.PORT || 3001;
