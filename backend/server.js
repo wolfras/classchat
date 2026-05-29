@@ -187,11 +187,13 @@ app.get('/api/members', async (req, res) => {
 // ==================== AUTH ROUTES ====================
 
 // Login endpoint
+// Login endpoint - FIXED
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
     console.log('📝 Login attempt for:', email);
+    console.log('📝 Password provided:', password);
     
     const result = await pool.query(
       'SELECT * FROM class_users WHERE username = $1 OR full_name = $1',
@@ -199,28 +201,42 @@ app.post('/api/login', async (req, res) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
     
     const user = result.rows[0];
+    console.log('👤 User found:', user.username, '| Stored password:', user.password);
     
-    let validPassword = false;
-    
-    try {
-      validPassword = await bcrypt.compare(password, user.password);
-    } catch (bcryptError) {
-      validPassword = (password === user.password);
+    // SIMPLE COMPARISON - Plain text passwords
+    if (password !== user.password) {
+      console.log('❌ Password mismatch');
+      return res.status(401).json({ success: false, message: 'Invalid password' });
     }
     
-    if (!validPassword) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid password' 
-      });
-    }
+    console.log('✅ Password matches!');
+    
+    // Set session
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.isAdmin = user.is_admin;
+    req.session.fullName = user.full_name;
+    
+    console.log('✅ Login successful:', user.username, '| Admin:', user.is_admin);
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        isAdmin: user.is_admin
+      }
+    });
+  } catch (error) {
+    console.error('🔥 Login error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+});
     
     // Set session
     req.session.userId = user.id;
