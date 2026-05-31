@@ -8,6 +8,7 @@ import accountIcon from '@iconify/icons-mdi/account';
 import messageTextIcon from '@iconify/icons-mdi/message-text';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
 import menuIcon from '@iconify/icons-mdi/menu';
+import searchIcon from '@iconify/icons-mdi/magnify';
 import { SOCKET_URL } from '../config';
 import { API_URL } from '../config';
 import './ChatPage.css';
@@ -23,7 +24,12 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [privateChats, setPrivateChats] = useState({});
   const [unreadPrivate, setUnreadPrivate] = useState({});
   const [pendingMessages, setPendingMessages] = useState(new Set());
-  const [sidebarOpen, setSidebarOpen] = useState(false); // NEW: Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar toggle
+  
+  // NEW: Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -119,6 +125,26 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
       .catch(err => console.error('Error:', err));
   }, [currentUser]);
 
+  // NEW: Handle search functionality
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredStudents([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const query = searchQuery.toLowerCase();
+    const results = allStudents.filter(
+      student =>
+        student.id !== currentUser?.id &&
+        (student.full_name.toLowerCase().includes(query) ||
+         student.username.toLowerCase().includes(query) ||
+         student.email?.toLowerCase().includes(query))
+    );
+    setFilteredStudents(results);
+  }, [searchQuery, allStudents, currentUser]);
+
   // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,6 +158,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const handleSelectUser = (user) => {
     setSelectedUser(user);
     setSidebarOpen(false); // Close sidebar on mobile when selecting user
+    setSearchQuery(''); // Clear search
     setUnreadPrivate(prev => {
       const updated = { ...prev };
       delete updated[user.id];
@@ -145,7 +172,10 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
     }
   };
 
-  const handleBackToGroup = () => setSelectedUser(null);
+  const handleBackToGroup = () => {
+    setSelectedUser(null);
+    setSearchQuery(''); // Clear search when going back to group
+  };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -238,6 +268,12 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
     );
   }
 
+  // Separate online and offline users (excluding current user)
+  const otherOnlineUsers = onlineUsers.filter(u => u.id !== currentUser?.id);
+  const otherOfflineUsers = allStudents.filter(
+    s => s.status !== 'online' && s.id !== currentUser?.id
+  );
+
   return (
     <div className="chat-page">
       <div className="chat-page-container">
@@ -247,61 +283,145 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
             <h3><Icon icon={messageTextIcon} width="22" height="22" /> Messages</h3>
           </div>
 
-          <button className={`chat-tab group-tab ${!selectedUser ? 'active' : ''}`} onClick={() => { handleBackToGroup(); setSidebarOpen(false); }}>
-            <div className="tab-icon"><Icon icon={accountGroupIcon} width="22" height="22" /></div>
-            <div className="tab-info">
-              <span className="tab-name">Class Group</span>
-              <span className="tab-preview">General chat for everyone</span>
+          {/* NEW: Search Bar */}
+          <div className="chat-sidebar-search">
+            <div className="search-input-wrapper">
+              <Icon icon={searchIcon} width="18" height="18" className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search students..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="chat-sidebar-input"
+              />
+              {searchQuery && (
+                <button
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <span className="online-badge">{onlineUsers.length}</span>
-          </button>
-
-          <div className="section-header">
-            <Icon icon={circleIcon} width="10" height="10" style={{ color: '#10b981' }} />
-            <span>Online Now • {onlineUsers.length}</span>
           </div>
 
-          <div className="online-users-list">
-            {onlineUsers.filter(u => u.id !== currentUser?.id).map(user => (
-              <button
-                key={user.id}
-                className={`online-user-item ${selectedUser?.id === user.id ? 'selected' : ''} ${unreadPrivate[user.id] ? 'has-unread' : ''}`}
-                onClick={() => handleSelectUser(user)}
-              >
-                <div className="user-avatar">
-                  {user.photo ? <img src={user.photo} alt={user.full_name} /> : 
-                    <div className="avatar-placeholder">{user.full_name?.split(' ').map(n => n[0]).join('')}</div>}
-                  <span className="online-dot"></span>
-                </div>
-                <div className="user-info">
-                  <div className="user-name-row">
+          {/* Group Tab - Only show if not searching */}
+          {!isSearching && (
+            <button 
+              className={`chat-tab group-tab ${!selectedUser ? 'active' : ''}`} 
+              onClick={() => { handleBackToGroup(); setSidebarOpen(false); }}
+            >
+              <div className="tab-icon"><Icon icon={accountGroupIcon} width="22" height="22" /></div>
+              <div className="tab-info">
+                <span className="tab-name">Class Group</span>
+                <span className="tab-preview">General chat for everyone</span>
+              </div>
+              <span className="online-badge">{onlineUsers.length}</span>
+            </button>
+          )}
+
+          {/* Search Results */}
+          {isSearching && filteredStudents.length > 0 && (
+            <div className="search-results-section">
+              <div className="section-header search-results-header">
+                Search Results ({filteredStudents.length})
+              </div>
+              <div className="search-results-list">
+                {filteredStudents.map(student => {
+                  const isOnline = student.status === 'online';
+                  return (
+                    <button
+                      key={student.id}
+                      className={`search-result-item ${selectedUser?.id === student.id ? 'selected' : ''} ${unreadPrivate[student.id] ? 'has-unread' : ''}`}
+                      onClick={() => handleSelectUser(student)}
+                    >
+                      <div className="user-avatar">
+                        {student.photo ? 
+                          <img src={student.photo} alt={student.full_name} /> : 
+                          <div className="avatar-placeholder">
+                            {student.full_name?.split(' ').map(n => n[0]).join('')}
+                          </div>
+                        }
+                        {isOnline && <span className="online-dot"></span>}
+                      </div>
+                      <div className="user-info">
+                        <div className="user-name-row">
+                          <span className="user-name">{student.full_name}</span>
+                          {unreadPrivate[student.id] && <span className="unread-dot"></span>}
+                        </div>
+                        <span className="user-last-msg">
+                          {isOnline ? '🟢 Online' : '⚫ Offline'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* No Search Results */}
+          {isSearching && filteredStudents.length === 0 && (
+            <div className="no-search-results">
+              <Icon icon={searchIcon} width="32" height="32" />
+              <p>No students found</p>
+              <span>Try a different name or email</span>
+            </div>
+          )}
+
+          {/* Online Users Section - Only show if not searching */}
+          {!isSearching && (
+            <>
+              <div className="section-header">
+                <Icon icon={circleIcon} width="10" height="10" style={{ color: '#10b981' }} />
+                <span>Online Now • {otherOnlineUsers.length}</span>
+              </div>
+
+              <div className="online-users-list">
+                {otherOnlineUsers.map(user => (
+                  <button
+                    key={user.id}
+                    className={`online-user-item ${selectedUser?.id === user.id ? 'selected' : ''} ${unreadPrivate[user.id] ? 'has-unread' : ''}`}
+                    onClick={() => handleSelectUser(user)}
+                  >
+                    <div className="user-avatar">
+                      {user.photo ? <img src={user.photo} alt={user.full_name} /> : 
+                        <div className="avatar-placeholder">{user.full_name?.split(' ').map(n => n[0]).join('')}</div>}
+                      <span className="online-dot"></span>
+                    </div>
+                    <div className="user-info">
+                      <div className="user-name-row">
+                        <span className="user-name">{user.full_name}</span>
+                        {unreadPrivate[user.id] && <span className="unread-dot"></span>}
+                      </div>
+                      <span className="user-last-msg">{user.role || 'Student'}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Offline Users Section */}
+              <div className="section-header offline">
+                <span>Offline • {otherOfflineUsers.length}</span>
+              </div>
+              <div className="offline-users-list">
+                {otherOfflineUsers.map(user => (
+                  <button
+                    key={user.id}
+                    className={`offline-user-item ${selectedUser?.id === user.id ? 'selected' : ''}`}
+                    onClick={() => handleSelectUser(user)}
+                  >
+                    <div className="user-avatar small">
+                      {user.photo ? <img src={user.photo} alt={user.full_name} /> :
+                        <div className="avatar-placeholder small">{user.full_name?.split(' ').map(n => n[0]).join('')}</div>}
+                    </div>
                     <span className="user-name">{user.full_name}</span>
-                    {unreadPrivate[user.id] && <span className="unread-dot"></span>}
-                  </div>
-                  <span className="user-last-msg">{user.role || 'Student'}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="section-header offline">
-            <span>Offline • {allStudents.filter(s => s.status !== 'online').length}</span>
-          </div>
-          <div className="offline-users-list">
-            {allStudents.filter(s => s.status !== 'online' && s.id !== currentUser?.id).slice(0, 15).map(user => (
-              <button
-                key={user.id}
-                className={`offline-user-item ${selectedUser?.id === user.id ? 'selected' : ''}`}
-                onClick={() => handleSelectUser(user)}
-              >
-                <div className="user-avatar small">
-                  {user.photo ? <img src={user.photo} alt={user.full_name} /> :
-                    <div className="avatar-placeholder small">{user.full_name?.split(' ').map(n => n[0]).join('')}</div>}
-                </div>
-                <span className="user-name">{user.full_name}</span>
-              </button>
-            ))}
-          </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Chat */}
@@ -312,6 +432,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
               className="mobile-sidebar-toggle"
               onClick={() => setSidebarOpen(!sidebarOpen)}
               aria-label="Toggle sidebar"
+              aria-expanded={sidebarOpen}
             >
               <Icon icon={menuIcon} width="22" height="22" />
             </button>

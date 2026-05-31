@@ -1,6 +1,7 @@
 /* =====================================================
    CHATPAGE.CSS - MOBILE-FIRST RESPONSIVE DESIGN
-   Fixed sidebar toggle, layout overflow, z-indexing
+   With Search Functionality & Student Directory
+   FIXED: Black screen issue resolved
    ===================================================== */
 
 .chat-page {
@@ -75,6 +76,159 @@
   margin: 0;
 }
 
+/* ===== SEARCH BAR ===== */
+.chat-sidebar-search {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-tertiary);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.chat-sidebar-input {
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.65rem 2.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: var(--transition-smooth);
+  box-sizing: border-box;
+}
+
+.chat-sidebar-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  background: var(--bg-card);
+}
+
+.chat-sidebar-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0.65rem;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
+/* ===== SEARCH RESULTS SECTION ===== */
+.search-results-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.search-results-header {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-results-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-smooth);
+  color: var(--text-primary);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.search-result-item:hover {
+  background: var(--bg-hover);
+}
+
+.search-result-item.selected {
+  background: rgba(124, 58, 237, 0.08);
+  border-left: 3px solid #7c3aed;
+  padding-left: calc(1.25rem - 3px);
+}
+
+.search-result-item.has-unread .user-name {
+  font-weight: 700;
+}
+
+/* ===== NO SEARCH RESULTS ===== */
+.no-search-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem 1rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.no-search-results p {
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.no-search-results span {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
 /* Group Tab */
 .chat-tab {
   display: flex;
@@ -90,6 +244,8 @@
   text-align: left;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .chat-tab:hover {
@@ -99,6 +255,7 @@
 .chat-tab.active {
   background: rgba(124, 58, 237, 0.1);
   border-left: 3px solid #7c3aed;
+  padding-left: calc(1.25rem - 3px);
 }
 
 .tab-icon {
@@ -158,6 +315,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0;
+  background: var(--bg-tertiary);
 }
 
 .section-header.offline {
@@ -609,6 +767,21 @@
 }
 
 /* =====================================================
+   MOBILE SIDEBAR OVERLAY - FIXED!
+   ===================================================== */
+
+.mobile-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 40;
+  /* FIXED: Default display: none - React controls visibility */
+  display: none !important;
+}
+
+/* =====================================================
    RESPONSIVE BREAKPOINTS - MOBILE FIRST
    ===================================================== */
 
@@ -672,6 +845,15 @@
 
   .mobile-sidebar-toggle {
     display: flex;
+  }
+
+  /* ===== SEARCH ===== */
+  .chat-sidebar-search {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .chat-sidebar-input {
+    font-size: 16px; /* Prevents iOS auto-zoom */
   }
 
   /* ===== MESSAGES ===== */
@@ -744,6 +926,14 @@
   .chat-input {
     font-size: 16px; /* Prevents iOS zoom */
   }
+
+  .chat-sidebar-header h3 {
+    font-size: 1rem;
+  }
+
+  .section-header {
+    font-size: 0.7rem;
+  }
 }
 
 /* ===== LANDSCAPE ORIENTATION ===== */
@@ -776,6 +966,7 @@
   .chat-tab,
   .online-user-item,
   .offline-user-item,
+  .search-result-item,
   .back-btn-chat,
   .send-btn,
   .mobile-sidebar-toggle {
@@ -785,7 +976,8 @@
 
   .chat-tab:hover,
   .online-user-item:hover,
-  .offline-user-item:hover {
+  .offline-user-item:hover,
+  .search-result-item:hover {
     transform: none;
   }
 
@@ -800,6 +992,10 @@
   .mobile-sidebar-toggle:hover {
     transform: none;
   }
+
+  .search-clear-btn:hover {
+    transform: none;
+  }
 }
 
 /* ===== REDUCED MOTION ===== */
@@ -808,10 +1004,13 @@
   .chat-tab,
   .online-user-item,
   .offline-user-item,
+  .search-result-item,
   .back-btn-chat,
   .send-btn,
   .mobile-sidebar-toggle,
-  .chat-input {
+  .chat-input,
+  .chat-sidebar-input,
+  .search-clear-btn {
     transition: none;
   }
 
@@ -826,7 +1025,8 @@
 @media (prefers-contrast: more) {
   .chat-tab,
   .online-user-item,
-  .offline-user-item {
+  .offline-user-item,
+  .search-result-item {
     border: 1px solid var(--border-color);
   }
 
@@ -835,8 +1035,13 @@
     outline-offset: 2px;
   }
 
-  .online-user-item.selected {
+  .online-user-item.selected,
+  .search-result-item.selected {
     outline: 2px solid #7c3aed;
     outline-offset: -2px;
+  }
+
+  .chat-sidebar-input:focus {
+    outline: 2px solid #7c3aed;
   }
 }

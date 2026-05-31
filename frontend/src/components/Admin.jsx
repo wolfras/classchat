@@ -4,14 +4,44 @@ import shieldIcon from '@iconify/icons-mdi/shield';
 import accountPlusIcon from '@iconify/icons-mdi/account-plus';
 import deleteIcon from '@iconify/icons-mdi/delete';
 import uploadIcon from '@iconify/icons-mdi/upload';
+import downloadIcon from '@iconify/icons-mdi/download';
+import pencilIcon from '@iconify/icons-mdi/pencil';
+import searchIcon from '@iconify/icons-mdi/magnify';
+import filterIcon from '@iconify/icons-mdi/filter';
+import sortIcon from '@iconify/icons-mdi/sort';
+import checkCircleIcon from '@iconify/icons-mdi/check-circle';
+import closeCircleIcon from '@iconify/icons-mdi/close-circle';
+import chartLineIcon from '@iconify/icons-mdi/chart-line';
+import accountMultipleIcon from '@iconify/icons-mdi/account-multiple';
 import { API_URL } from '../config';
 import './Admin.css';
 
 const Admin = ({ isDarkTheme }) => {
   const [students, setStudents] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  
+  // Bulk actions
+  const [selectedStudents, setSelectedStudents] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  
+  // Edit form
+  const [editingStudent, setEditingStudent] = useState(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -27,6 +57,14 @@ const Admin = ({ isDarkTheme }) => {
     fetchStudents();
   }, []);
 
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [students, searchQuery, roleFilter, statusFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredStudents]);
+
   const fetchStudents = async () => {
     try {
       const res = await fetch(`${API_URL}/api/students`);
@@ -37,15 +75,67 @@ const Admin = ({ isDarkTheme }) => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching students:', err);
+      showMessage('Error fetching students', 'error');
       setLoading(false);
     }
+  };
+
+  const applyFiltersAndSort = () => {
+    let filtered = [...students];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.full_name.toLowerCase().includes(query) ||
+        s.email?.toLowerCase().includes(query) ||
+        s.username?.toLowerCase().includes(query)
+      );
+    }
+
+    // Role filter
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(s => s.role === roleFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(s => s.status === statusFilter);
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+
+      if (sortBy === 'name') {
+        aVal = a.full_name;
+        bVal = b.full_name;
+      }
+
+      if (aVal === undefined) aVal = '';
+      if (bVal === undefined) bVal = '';
+
+      const comparison = aVal.toString().localeCompare(bVal.toString());
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredStudents(filtered);
+    setSelectedStudents(new Set());
+    setSelectAll(false);
+  };
+
+  const showMessage = (msg, type = 'success') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 4000);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('File too large. Max 10MB.');
+        showMessage('File too large. Max 10MB.', 'error');
         return;
       }
       setSelectedFile(file);
@@ -54,7 +144,7 @@ const Admin = ({ isDarkTheme }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('Uploading...');
+    showMessage('Uploading...');
 
     const formDataToSend = new FormData();
     formDataToSend.append('full_name', formData.full_name);
@@ -62,7 +152,7 @@ const Admin = ({ isDarkTheme }) => {
     formDataToSend.append('email', formData.email);
     formDataToSend.append('bio', formData.bio);
     formDataToSend.append('skills', formData.skills);
-    
+
     if (selectedFile) {
       formDataToSend.append('photo', selectedFile);
     }
@@ -73,283 +163,487 @@ const Admin = ({ isDarkTheme }) => {
         credentials: 'include',
         body: formDataToSend
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
-        setMessage('Student added successfully!');
+        showMessage('Student added successfully!', 'success');
         setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
         setSelectedFile(null);
         setShowAddForm(false);
         fetchStudents();
       } else {
-        setMessage('Error: ' + data.message);
+        showMessage('Error: ' + data.message, 'error');
       }
     } catch (err) {
-      setMessage('Connection error. Is the backend running?');
+      showMessage('Connection error. Is the backend running?', 'error');
     }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    showMessage('Updating...');
+
+    const formDataToSend = new FormData();
+    formDataToSend.append('full_name', formData.full_name);
+    formDataToSend.append('role', formData.role);
+    formDataToSend.append('email', formData.email);
+    formDataToSend.append('bio', formData.bio);
+    formDataToSend.append('skills', formData.skills);
+
+    if (selectedFile) {
+      formDataToSend.append('photo', selectedFile);
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/admin/students/${editingStudent.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formDataToSend
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showMessage('Student updated successfully!', 'success');
+        setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+        setSelectedFile(null);
+        setShowEditForm(false);
+        setEditingStudent(null);
+        fetchStudents();
+      } else {
+        showMessage('Error: ' + data.message, 'error');
+      }
+    } catch (err) {
+      showMessage('Connection error', 'error');
+    }
+  };
+
+  const startEdit = (student) => {
+    setEditingStudent(student);
+    setFormData({
+      full_name: student.full_name,
+      role: student.role || '',
+      email: student.email || '',
+      bio: student.bio || '',
+      skills: student.skills || ''
+    });
+    setShowEditForm(true);
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this student?')) return;
-    
+
     try {
       await fetch(`${API_URL}/api/admin/students/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
+      showMessage('Student deleted successfully!', 'success');
       fetchStudents();
     } catch (err) {
-      console.error('Error deleting:', err);
+      showMessage('Error deleting student', 'error');
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedStudents.size === 0) {
+      showMessage('No students selected', 'error');
+      return;
+    }
+
+    if (!window.confirm(`Delete ${selectedStudents.size} students?`)) return;
+
+    for (const id of selectedStudents) {
+      try {
+        await fetch(`${API_URL}/api/admin/students/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+      } catch (err) {
+        console.error('Error deleting:', err);
+      }
+    }
+
+    showMessage(`${selectedStudents.size} students deleted!`, 'success');
+    setSelectedStudents(new Set());
+    setSelectAll(false);
+    fetchStudents();
+  };
+
+  const toggleSelectStudent = (id) => {
+    const newSelected = new Set(selectedStudents);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedStudents(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedStudents(new Set());
+      setSelectAll(false);
+    } else {
+      const pageStudents = getPaginatedData();
+      const newSelected = new Set(pageStudents.map(s => s.id));
+      setSelectedStudents(newSelected);
+      setSelectAll(true);
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Full Name', 'Email', 'Role', 'Status', 'Skills'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredStudents.map(s =>
+        [s.full_name, s.email || '', s.role || '', s.status, s.skills || '']
+          .map(field => `"${field}"`)
+          .join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `students-export-${Date.now()}.csv`;
+    a.click();
+    showMessage('Exported to CSV!', 'success');
+  };
+
+  const getRoleOptions = () => {
+    const roles = new Set(students.map(s => s.role).filter(Boolean));
+    return Array.from(roles);
+  };
+
+  // Pagination
+  const getPaginatedData = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredStudents.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const paginatedStudents = getPaginatedData();
+
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-        Loading admin panel...
+      <div className="admin-loading">
+        <div className="admin-loading-spinner"></div>
+        <p>Loading admin panel...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      padding: '2rem', 
-      maxWidth: '1200px', 
-      margin: '0 auto',
-      color: 'var(--text-primary)'
-    }}>
-      <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <Icon icon={shieldIcon} width="32" height="32" style={{ color: '#7c3aed' }} />
-        Admin Panel
-      </h1>
+    <div className="admin">
+      {/* Header */}
+      <div className="admin-header">
+        <h1>
+          <Icon icon={shieldIcon} width="32" height="32" />
+          Admin Panel
+        </h1>
+        <p className="admin-subtitle">Manage students, view analytics, and control the platform</p>
+      </div>
 
-      {/* Stats */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '1rem',
-        marginBottom: '2rem'
-      }}>
-        <div style={statCardStyle}>
-          <h3 style={{ fontSize: '2rem', color: '#7c3aed' }}>{students.length}</h3>
+      {/* Statistics */}
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="stat-icon">
+            <Icon icon={accountMultipleIcon} width="24" height="24" />
+          </div>
+          <h3>{students.length}</h3>
           <p>Total Students</p>
         </div>
-        <div style={statCardStyle}>
-          <h3 style={{ fontSize: '2rem', color: '#10b981' }}>
-            {students.filter(s => s.status === 'online').length}
-          </h3>
+        <div className="admin-stat-card">
+          <div className="stat-icon online">
+            <Icon icon={checkCircleIcon} width="24" height="24" />
+          </div>
+          <h3>{students.filter(s => s.status === 'online').length}</h3>
           <p>Online Now</p>
+        </div>
+        <div className="admin-stat-card">
+          <div className="stat-icon">
+            <Icon icon={chartLineIcon} width="24" height="24" />
+          </div>
+          <h3>{filteredStudents.length}</h3>
+          <p>Filtered Results</p>
         </div>
       </div>
 
-      {/* Add Student Button */}
-      <button
-        onClick={() => setShowAddForm(!showAddForm)}
-        style={{
-          padding: '0.75rem 1.5rem',
-          background: '#7c3aed',
-          color: 'white',
-          border: 'none',
-          borderRadius: '10px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          fontWeight: 600,
-          marginBottom: '1.5rem'
-        }}
-      >
-        <Icon icon={accountPlusIcon} width="20" height="20" />
-        Add Student
-      </button>
-
+      {/* Message */}
       {message && (
-        <div style={{
-          padding: '1rem',
-          background: message.includes('Error') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-          border: '1px solid ' + (message.includes('Error') ? '#ef4444' : '#10b981'),
-          borderRadius: '10px',
-          marginBottom: '1rem',
-          color: message.includes('Error') ? '#ef4444' : '#10b981'
-        }}>
+        <div className={`admin-message admin-message-${messageType}`}>
+          <Icon icon={messageType === 'success' ? checkCircleIcon : closeCircleIcon} width="20" height="20" />
           {message}
         </div>
       )}
 
-      {/* Add Student Form */}
-      {showAddForm && (
-        <form onSubmit={handleSubmit} style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '16px',
-          padding: '2rem',
-          marginBottom: '2rem'
-        }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Add New Student</h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            <input
-              type="text"
-              placeholder="Full Name *"
-              value={formData.full_name}
-              onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-              required
-              style={inputStyle}
-            />
-            <input
-              type="text"
-              placeholder="Role"
-              value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
-              style={inputStyle}
-            />
-          </div>
-          
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            style={{ ...inputStyle, marginBottom: '1rem' }}
-          />
-          
-          <textarea
-            placeholder="Bio"
-            value={formData.bio}
-            onChange={(e) => setFormData({...formData, bio: e.target.value})}
-            rows="3"
-            style={{ ...inputStyle, marginBottom: '1rem', resize: 'vertical' }}
-          />
-          
-          <input
-            type="text"
-            placeholder="Skills (comma separated)"
-            value={formData.skills}
-            onChange={(e) => setFormData({...formData, skills: e.target.value})}
-            style={{ ...inputStyle, marginBottom: '1rem' }}
-          />
+      {/* Toolbar */}
+      <div className="admin-toolbar">
+        <button
+          className="admin-btn admin-btn-primary"
+          onClick={() => {
+            setEditingStudent(null);
+            setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+            setShowAddForm(!showAddForm);
+          }}
+        >
+          <Icon icon={accountPlusIcon} width="18" height="18" />
+          Add Student
+        </button>
 
-          {/* File Upload */}
-          <div style={{
-            border: '2px dashed var(--border-color)',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            textAlign: 'center',
-            marginBottom: '1rem',
-            cursor: 'pointer'
-          }}>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
-              <Icon icon={uploadIcon} width="32" height="32" style={{ color: '#7c3aed' }} />
-              <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
-                {selectedFile ? selectedFile.name : 'Click to upload student photo'}
-              </p>
-            </label>
-          </div>
-
-          <button type="submit" style={{
-            padding: '0.75rem 2rem',
-            background: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '10px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '1rem'
-          }}>
-            Add Student
+        <div className="admin-toolbar-right">
+          <button className="admin-btn admin-btn-secondary" onClick={exportToCSV}>
+            <Icon icon={downloadIcon} width="18" height="18" />
+            Export CSV
           </button>
-        </form>
+
+          {selectedStudents.size > 0 && (
+            <button className="admin-btn admin-btn-danger" onClick={handleBulkDelete}>
+              <Icon icon={deleteIcon} width="18" height="18" />
+              Delete {selectedStudents.size}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Add/Edit Form */}
+      {(showAddForm || showEditForm) && (
+        <div className="admin-form-container">
+          <form onSubmit={showEditForm ? handleEditSubmit : handleSubmit} className="admin-form">
+            <h3>{showEditForm ? 'Edit Student' : 'Add New Student'}</h3>
+
+            <div className="admin-form-grid">
+              <input
+                type="text"
+                placeholder="Full Name *"
+                value={formData.full_name}
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                required
+                className="admin-input"
+              />
+              <input
+                type="text"
+                placeholder="Role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="admin-input"
+              />
+            </div>
+
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="admin-input"
+            />
+
+            <textarea
+              placeholder="Bio"
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              rows="3"
+              className="admin-input"
+            />
+
+            <input
+              type="text"
+              placeholder="Skills (comma separated)"
+              value={formData.skills}
+              onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+              className="admin-input"
+            />
+
+            {/* File Upload */}
+            <div className="admin-file-upload">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                id="file-upload"
+              />
+              <label htmlFor="file-upload">
+                <Icon icon={uploadIcon} width="32" height="32" />
+                <p>{selectedFile ? selectedFile.name : 'Click to upload student photo'}</p>
+              </label>
+            </div>
+
+            <div className="admin-form-actions">
+              <button type="submit" className="admin-btn admin-btn-success">
+                {showEditForm ? 'Update Student' : 'Add Student'}
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setShowEditForm(false);
+                  setEditingStudent(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
-      {/* Students List */}
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '16px',
-        overflow: 'hidden'
-      }}>
-        <h3 style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-          All Students ({students.length})
-        </h3>
-        
-        {students.length === 0 ? (
-          <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            No students yet. Add your first student!
-          </p>
+      {/* Search & Filter */}
+      <div className="admin-search-bar">
+        <div className="admin-search-input-wrapper">
+          <Icon icon={searchIcon} width="20" height="20" className="admin-search-icon" />
+          <input
+            type="text"
+            placeholder="Search by name, email, or username..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="admin-search-input"
+          />
+        </div>
+
+        <div className="admin-filters">
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="all">All Roles</option>
+            {getRoleOptions().map(role => (
+              <option key={role} value={role}>{role}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="all">All Status</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="name">Sort by Name</option>
+            <option value="email">Sort by Email</option>
+            <option value="role">Sort by Role</option>
+            <option value="status">Sort by Status</option>
+          </select>
+
+          <button
+            className="admin-sort-toggle"
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
+          >
+            <Icon icon={sortIcon} width="18" height="18" />
+          </button>
+        </div>
+      </div>
+
+      {/* Results Info */}
+      <div className="admin-results-info">
+        <p>
+          Showing {paginatedStudents.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{' '}
+          {Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length} students
+        </p>
+        <div className="admin-items-per-page">
+          <label>Per page:</label>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="admin-filter-select"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Students Table */}
+      <div className="admin-table-container">
+        {filteredStudents.length === 0 ? (
+          <div className="admin-empty-state">
+            <Icon icon={accountMultipleIcon} width="48" height="48" />
+            <p>No students found</p>
+            <span>Try adjusting your filters or add a new student</span>
+          </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={thStyle}>Photo</th>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Role</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Actions</th>
+                <tr>
+                  <th className="admin-th-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={toggleSelectAll}
+                      className="admin-checkbox"
+                    />
+                  </th>
+                  <th>Photo</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {students.map(student => (
-                  <tr key={student.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={tdStyle}>
+                {paginatedStudents.map(student => (
+                  <tr key={student.id} className="admin-tr">
+                    <td className="admin-td-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.has(student.id)}
+                        onChange={() => toggleSelectStudent(student.id)}
+                        className="admin-checkbox"
+                      />
+                    </td>
+                    <td className="admin-td-photo">
                       {student.photo ? (
-                        <img 
-                          src={student.photo} 
-                          alt={student.full_name}
-                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
-                        />
+                        <img src={student.photo} alt={student.full_name} />
                       ) : (
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          background: '#7c3aed',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 'bold',
-                          fontSize: '0.8rem'
-                        }}>
+                        <div className="admin-avatar-placeholder">
                           {student.full_name?.split(' ').map(n => n[0]).join('')}
                         </div>
                       )}
                     </td>
-                    <td style={tdStyle}>{student.full_name}</td>
-                    <td style={tdStyle}>{student.role || '-'}</td>
-                    <td style={tdStyle}>{student.email || '-'}</td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '20px',
-                        fontSize: '0.8rem',
-                        background: student.status === 'online' ? 'rgba(16,185,129,0.1)' : 'rgba(107,114,128,0.1)',
-                        color: student.status === 'online' ? '#10b981' : '#6b7280'
-                      }}>
+                    <td className="admin-td-name">{student.full_name}</td>
+                    <td className="admin-td-email">{student.email || '-'}</td>
+                    <td className="admin-td-role">
+                      <span className="admin-role-badge">{student.role || '-'}</span>
+                    </td>
+                    <td className="admin-td-status">
+                      <span className={`admin-status-badge admin-status-${student.status}`}>
                         {student.status}
                       </span>
                     </td>
-                    <td style={tdStyle}>
+                    <td className="admin-td-actions">
                       <button
-                        onClick={() => handleDelete(student.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          padding: '0.5rem'
-                        }}
+                        className="admin-action-btn admin-edit-btn"
+                        onClick={() => startEdit(student)}
+                        title="Edit"
                       >
-                        <Icon icon={deleteIcon} width="18" height="18" />
+                        <Icon icon={pencilIcon} width="16" height="16" />
+                      </button>
+                      <button
+                        className="admin-action-btn admin-delete-btn"
+                        onClick={() => handleDelete(student.id)}
+                        title="Delete"
+                      >
+                        <Icon icon={deleteIcon} width="16" height="16" />
                       </button>
                     </td>
                   </tr>
@@ -359,39 +653,41 @@ const Admin = ({ isDarkTheme }) => {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="admin-pagination">
+          <button
+            className="admin-pagination-btn"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+          >
+            ← Previous
+          </button>
+
+          <div className="admin-pagination-pages">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                className={`admin-pagination-page ${currentPage === page ? 'active' : ''}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="admin-pagination-btn"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
-};
-
-// Styles
-const statCardStyle = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '16px',
-  padding: '1.5rem',
-  textAlign: 'center'
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '0.75rem 1rem',
-  border: '1px solid var(--border-color)',
-  borderRadius: '10px',
-  background: 'var(--bg-input)',
-  color: 'var(--text-primary)',
-  fontSize: '0.95rem'
-};
-
-const thStyle = {
-  textAlign: 'left',
-  padding: '1rem',
-  color: 'var(--text-secondary)',
-  fontWeight: 600
-};
-
-const tdStyle = {
-  padding: '0.75rem 1rem',
-  color: 'var(--text-primary)'
 };
 
 export default Admin;
