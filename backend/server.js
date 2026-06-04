@@ -8,7 +8,6 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -27,7 +26,6 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'admin',
   database: process.env.DB_NAME || 'class_users',
-  // If DATABASE_URL is provided (Render), use it as fallback
   ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {}),
 });
 
@@ -43,7 +41,7 @@ pool.query('SELECT NOW()')
 const app = express();
 const server = createServer(app);
 
-// Allowed origins for CORS (local + production)
+// Allowed origins for CORS
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -53,10 +51,8 @@ const allowedOrigins = [
 const io = new Server(server, {
   cors: {
     origin: function(origin, callback) {
-      // Allow requests with no origin (mobile apps, Postman, curl)
       if (!origin) return callback(null, true);
       
-      // Check if origin matches any allowed pattern
       const isAllowed = allowedOrigins.some(allowed => {
         if (allowed.includes('*')) {
           const regex = new RegExp('^' + allowed.replace(/\*/g, '.*') + '$');
@@ -96,11 +92,12 @@ app.use(cors({
   },
   credentials: true
 }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.set('trust proxy', 1);
 
-// Session configuration - Updated for production
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'l3sod-fallback-secret-key',
   resave: false,
@@ -113,7 +110,6 @@ app.use(session({
   }
 }));
 
-// Trust proxy for Render/Heroku
 if (isProduction) {
   app.set('trust proxy', 1);
 }
@@ -146,12 +142,11 @@ async function broadcastStudentUpdate() {
     io.emit('students_updated', students);
     return students;
   } catch (error) {
-    console.error('Broadcast error:', error);
+    console.error('❌ Broadcast error:', error);
   }
 }
 
-
-// Health check endpoint (NEW - for Render uptime monitoring)
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -179,20 +174,16 @@ app.get('/api/members', async (req, res) => {
     
     res.json(members);
   } catch (error) {
-    console.error('Error fetching members:', error);
+    console.error('❌ Error fetching members:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 // ==================== AUTH ROUTES ====================
 
-// Login endpoint
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    console.log('📝 Login attempt for:', email);
-    console.log('📝 Password provided:', password);
     
     const result = await pool.query(
       'SELECT * FROM class_users WHERE username = $1 OR full_name = $1',
@@ -204,23 +195,17 @@ app.post('/api/login', async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('👤 User found:', user.username, '| Stored password:', user.password);
     
-    // SIMPLE COMPARISON - Plain text passwords
+    // Simple comparison - Plain text passwords
     if (password !== user.password) {
-      console.log('❌ Password mismatch');
       return res.status(401).json({ success: false, message: 'Invalid password' });
     }
-    
-    console.log('✅ Password matches!');
     
     // Set session
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.isAdmin = user.is_admin;
     req.session.fullName = user.full_name;
-    
-    console.log('✅ Login successful:', user.username, '| Admin:', user.is_admin);
     
     res.json({
       success: true,
@@ -232,7 +217,7 @@ app.post('/api/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('🔥 Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Server error: ' + error.message 
@@ -240,14 +225,13 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Logout endpoint
 app.post('/api/logout', (req, res) => {
   const userId = req.session.userId;
   
   if (userId) {
     pool.query("UPDATE students SET status = 'offline' WHERE id = $1", [userId])
       .then(() => broadcastStudentUpdate())
-      .catch(err => console.error('Logout update error:', err));
+      .catch(err => console.error('❌ Logout update error:', err));
   }
   
   req.session.destroy((err) => {
@@ -259,7 +243,6 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-// Session check
 app.get('/api/session', (req, res) => {
   if (req.session.userId) {
     res.json({
@@ -291,7 +274,7 @@ app.get('/api/students', async (req, res) => {
     
     res.json({ success: true, students });
   } catch (error) {
-    console.error('Error fetching students:', error);
+    console.error('❌ Error fetching students:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -312,7 +295,7 @@ app.get('/api/students/:id', async (req, res) => {
     
     res.json({ success: true, student });
   } catch (error) {
-    console.error('Error fetching student:', error);
+    console.error('❌ Error fetching student:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -322,38 +305,46 @@ app.get('/api/students/:id', async (req, res) => {
 app.get('/api/messages', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM messages ORDER BY created_at DESC LIMIT 100'
+      'SELECT id, user_id, username, message_text, created_at FROM messages ORDER BY created_at ASC LIMIT 200'
     );
     
-    res.json({ success: true, messages: result.rows.reverse() });
+    console.log('📨 Fetched', result.rows.length, 'messages from database');
+    res.json({ success: true, messages: result.rows });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error fetching messages:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
 app.post('/api/messages', async (req, res) => {
   try {
-    const { text } = req.body;
-    const userId = req.session.userId || 0;
-    const username = req.session.username || req.body.username || 'Anonymous';
+    const { text, userId, username } = req.body;
+    
+    if (!text || text.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Message cannot be empty' });
+    }
     
     const result = await pool.query(
-      'INSERT INTO messages (user_id, username, message_text) VALUES ($1, $2, $3) RETURNING *',
-      [userId, username, text]
+      'INSERT INTO messages (user_id, username, message_text, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, user_id, username, message_text, created_at',
+      [userId || null, username || 'Anonymous', text.trim()]
     );
     
-    io.emit('new_message', result.rows[0]);
-    res.json({ success: true, message: result.rows[0] });
+    if (result.rows.length === 0) {
+      return res.status(500).json({ success: false, message: 'Failed to save message' });
+    }
+    
+    const message = result.rows[0];
+    console.log('✅ Message saved to DB:', message.id, 'by', message.username);
+    
+    res.json({ success: true, message });
   } catch (error) {
-    console.error('Error posting message:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error posting message:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
 // ==================== PRIVATE MESSAGE ROUTES ====================
 
-// Get conversation between two users
 app.get('/api/messages/private/:otherUserId', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
@@ -361,15 +352,18 @@ app.get('/api/messages/private/:otherUserId', async (req, res) => {
   
   try {
     const result = await pool.query(
-      `SELECT * FROM private_messages 
+      `SELECT id, sender_id, sender_name, receiver_id, receiver_name, message_text, is_read, created_at 
+       FROM private_messages 
        WHERE (sender_id = $1 AND receiver_id = $2) 
           OR (sender_id = $2 AND receiver_id = $1) 
        ORDER BY created_at ASC
-       LIMIT 100`,
+       LIMIT 200`,
       [req.session.userId, req.params.otherUserId]
     );
     
-    // Mark messages as read
+    console.log('📨 Fetched', result.rows.length, 'private messages');
+    
+    // Mark as read
     await pool.query(
       `UPDATE private_messages SET is_read = TRUE 
        WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE`,
@@ -378,63 +372,11 @@ app.get('/api/messages/private/:otherUserId', async (req, res) => {
     
     res.json({ success: true, messages: result.rows });
   } catch (error) {
-    console.error('Error fetching private messages:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error fetching private messages:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
-// Get all conversations for current user
-app.get('/api/conversations', async (req, res) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-  
-  try {
-    const result = await pool.query(
-      `SELECT 
-        CASE 
-          WHEN sender_id = $1 THEN receiver_id 
-          ELSE sender_id 
-        END AS other_user_id,
-        CASE 
-          WHEN sender_id = $1 THEN receiver_name 
-          ELSE sender_name 
-        END AS other_user_name,
-        (SELECT message_text FROM private_messages pm2 
-         WHERE (pm2.sender_id = $1 AND pm2.receiver_id = 
-            CASE WHEN private_messages.sender_id = $1 THEN private_messages.receiver_id ELSE private_messages.sender_id END) 
-            OR (pm2.sender_id = 
-            CASE WHEN private_messages.sender_id = $1 THEN private_messages.receiver_id ELSE private_messages.sender_id END 
-            AND pm2.receiver_id = $1) 
-         ORDER BY pm2.created_at DESC LIMIT 1) AS last_message,
-        (SELECT created_at FROM private_messages pm2 
-         WHERE (pm2.sender_id = $1 AND pm2.receiver_id = 
-            CASE WHEN private_messages.sender_id = $1 THEN private_messages.receiver_id ELSE private_messages.sender_id END) 
-            OR (pm2.sender_id = 
-            CASE WHEN private_messages.sender_id = $1 THEN private_messages.receiver_id ELSE private_messages.sender_id END 
-            AND pm2.receiver_id = $1) 
-         ORDER BY pm2.created_at DESC LIMIT 1) AS last_message_time,
-        (SELECT COUNT(*) FROM private_messages pm2 
-         WHERE pm2.sender_id = 
-            CASE WHEN private_messages.sender_id = $1 THEN private_messages.receiver_id ELSE private_messages.sender_id END 
-         AND pm2.receiver_id = $1 AND pm2.is_read = FALSE) AS unread_count
-      FROM private_messages
-      WHERE sender_id = $1 OR receiver_id = $1
-      GROUP BY 
-        CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END,
-        CASE WHEN sender_id = $1 THEN receiver_name ELSE sender_name END
-      ORDER BY last_message_time DESC NULLS LAST`,
-      [req.session.userId]
-    );
-    
-    res.json({ success: true, conversations: result.rows });
-  } catch (error) {
-    console.error('Error fetching conversations:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Send private message via REST API
 app.post('/api/messages/private', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
@@ -443,55 +385,28 @@ app.post('/api/messages/private', async (req, res) => {
   try {
     const { receiverId, receiverName, text } = req.body;
     
-    const result = await pool.query(
-      `INSERT INTO private_messages (sender_id, sender_name, receiver_id, receiver_name, message_text) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.session.userId, req.session.fullName || req.session.username, receiverId, receiverName || '', text]
-    );
-    
-    const savedMessage = result.rows[0];
-    
-    // Emit to receiver if online
-    for (let [socketId, user] of connectedUsers) {
-      if (user.id === receiverId) {
-        io.to(socketId).emit('private_message', {
-          id: savedMessage.id,
-          sender_id: req.session.userId,
-          sender_name: req.session.fullName || req.session.username,
-          receiver_id: receiverId,
-          receiver_name: receiverName || '',
-          message_text: text,
-          is_read: false,
-          created_at: savedMessage.created_at
-        });
-        break;
-      }
+    if (!text || text.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Message cannot be empty' });
     }
     
-    res.json({ success: true, message: savedMessage });
-  } catch (error) {
-    console.error('Error sending private message:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Mark messages as read
-app.put('/api/messages/private/read/:senderId', async (req, res) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-  
-  try {
-    await pool.query(
-      `UPDATE private_messages SET is_read = TRUE 
-       WHERE sender_id = $1 AND receiver_id = $2 AND is_read = FALSE`,
-      [req.params.senderId, req.session.userId]
+    const result = await pool.query(
+      `INSERT INTO private_messages (sender_id, sender_name, receiver_id, receiver_name, message_text, created_at) 
+       VALUES ($1, $2, $3, $4, $5, NOW()) 
+       RETURNING id, sender_id, sender_name, receiver_id, receiver_name, message_text, is_read, created_at`,
+      [req.session.userId, req.session.fullName || req.session.username, receiverId, receiverName || '', text.trim()]
     );
     
-    res.json({ success: true, message: 'Messages marked as read' });
+    if (result.rows.length === 0) {
+      return res.status(500).json({ success: false, message: 'Failed to save message' });
+    }
+    
+    const message = result.rows[0];
+    console.log('✅ Private message saved to DB:', message.id);
+    
+    res.json({ success: true, message });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error sending private message:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -501,29 +416,11 @@ const requireAdmin = (req, res, next) => {
   if (!req.session.userId || !req.session.isAdmin) {
     return res.status(403).json({ 
       success: false, 
-      message: 'Admin access required. Please login as admin.' 
+      message: 'Admin access required' 
     });
   }
   next();
 };
-
-app.get('/api/admin/stats', requireAdmin, async (req, res) => {
-  try {
-    const studentCount = await pool.query('SELECT COUNT(*) FROM students');
-    const userCount = await pool.query('SELECT COUNT(*) FROM class_users');
-    
-    res.json({
-      success: true,
-      stats: {
-        totalStudents: parseInt(studentCount.rows[0].count),
-        totalUsers: parseInt(userCount.rows[0].count),
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 
 app.get('/api/admin/students', requireAdmin, async (req, res) => {
   try {
@@ -536,7 +433,7 @@ app.get('/api/admin/students', requireAdmin, async (req, res) => {
     
     res.json({ success: true, students });
   } catch (error) {
-    console.error('Error fetching students:', error);
+    console.error('❌ Error fetching students:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -559,7 +456,39 @@ app.post('/api/admin/students', requireAdmin, upload.single('photo'), async (req
     broadcastStudentUpdate();
     res.json({ success: true, student: result.rows[0] });
   } catch (error) {
-    console.error('Error adding student:', error);
+    console.error('❌ Error adding student:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+app.put('/api/admin/students/:id', requireAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    const { full_name, role, email, bio, skills } = req.body;
+    const photo = req.file ? req.file.buffer : null;
+    const photoMimeType = req.file ? req.file.mimetype : null;
+    
+    const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(s => s) : [];
+    
+    let result;
+    if (photo) {
+      result = await pool.query(
+        `UPDATE students SET full_name = $1, role = $2, email = $3, bio = $4, skills = $5, photo = $6, photo_mime_type = $7 
+         WHERE id = $8 RETURNING *`,
+        [full_name, role, email, bio, skillsArray, photo, photoMimeType, req.params.id]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE students SET full_name = $1, role = $2, email = $3, bio = $4, skills = $5 
+         WHERE id = $6 RETURNING *`,
+        [full_name, role, email, bio, skillsArray, req.params.id]
+      );
+    }
+    
+    console.log('✅ Student updated:', full_name);
+    broadcastStudentUpdate();
+    res.json({ success: true, student: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Error updating student:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -571,54 +500,7 @@ app.delete('/api/admin/students/:id', requireAdmin, async (req, res) => {
     broadcastStudentUpdate();
     res.json({ success: true, message: 'Student deleted' });
   } catch (error) {
-    console.error('Error deleting student:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// ==================== GALLERY ROUTES ====================
-
-app.get('/api/gallery', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM gallery_images ORDER BY created_at DESC');
-    
-    const images = result.rows.map(img => ({
-      ...img,
-      image_data: img.image_data ? 
-        `data:${img.mime_type};base64,${img.image_data.toString('base64')}` : null
-    }));
-    
-    res.json({ success: true, images });
-  } catch (error) {
-    console.error('Error fetching gallery:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-app.post('/api/gallery', upload.single('image'), async (req, res) => {
-  try {
-    const { title, description } = req.body;
-    const uploadedBy = req.session.username || 'Anonymous';
-    
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No image file provided' });
-    }
-    
-    const result = await pool.query(
-      `INSERT INTO gallery_images (title, description, image_data, mime_type, uploaded_by) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title || 'Untitled', description || '', req.file.buffer, req.file.mimetype, uploadedBy]
-    );
-    
-    const image = {
-      ...result.rows[0],
-      image_data: `data:${result.rows[0].mime_type};base64,${result.rows[0].image_data.toString('base64')}`
-    };
-    
-    io.emit('gallery_updated', image);
-    res.json({ success: true, image });
-  } catch (error) {
-    console.error('Error uploading image:', error);
+    console.error('❌ Error deleting student:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -632,7 +514,6 @@ io.on('connection', (socket) => {
   socket.on('user_join', async (userData) => {
     try {
       if (userData && userData.id) {
-        // Store with socket id
         connectedUsers.set(socket.id, {
           id: userData.id,
           name: userData.name || userData.username,
@@ -647,99 +528,115 @@ io.on('connection', (socket) => {
         await broadcastStudentUpdate();
         
         console.log('👤 User online:', userData.name, '(ID:', userData.id, ')');
-        console.log('📋 Connected users:', [...connectedUsers.entries()].map(([sid, u]) => `${u.name}(ID:${u.id})`));
+        
+        // Send group message history
+        try {
+          const messages = await pool.query(
+            'SELECT id, user_id, username, message_text, created_at FROM messages ORDER BY created_at ASC LIMIT 200'
+          );
+          console.log('📨 Sending', messages.rows.length, 'messages to client');
+          socket.emit('message_history', messages.rows);
+        } catch (error) {
+          console.error('❌ Error fetching message history:', error);
+          socket.emit('message_history', []);
+        }
+        
+        // Send private message history
+        try {
+          const privateMsgs = await pool.query(
+            `SELECT id, sender_id, sender_name, receiver_id, receiver_name, message_text, is_read, created_at 
+             FROM private_messages 
+             WHERE sender_id = $1 OR receiver_id = $1 
+             ORDER BY created_at ASC LIMIT 200`,
+            [userData.id]
+          );
+          console.log('📨 Sending', privateMsgs.rows.length, 'private messages to client');
+          socket.emit('private_message_history', privateMsgs.rows);
+        } catch (error) {
+          console.error('❌ Error fetching private message history:', error);
+          socket.emit('private_message_history', []);
+        }
       }
-      
-      // Send group message history
-      const messages = await pool.query('SELECT * FROM messages ORDER BY created_at DESC LIMIT 50');
-      socket.emit('message_history', messages.rows.reverse());
-      
-      // Send private message history for this user
-      const privateMsgs = await pool.query(
-        `SELECT * FROM private_messages 
-         WHERE sender_id = $1 OR receiver_id = $1 
-         ORDER BY created_at DESC LIMIT 100`,
-        [userData?.id]
-      );
-      socket.emit('private_message_history', privateMsgs.rows.reverse());
-      
     } catch (error) {
-      console.error('User join error:', error);
+      console.error('❌ User join error:', error);
     }
   });
 
   // Handle group messages
   socket.on('send_message', async (messageData) => {
     try {
+      console.log('📤 Received message from', messageData.username, ':', messageData.text.substring(0, 50));
+      
       const result = await pool.query(
-        'INSERT INTO messages (user_id, username, message_text) VALUES ($1, $2, $3) RETURNING *',
-        [messageData.userId || 0, messageData.username || 'Anonymous', messageData.text]
+        'INSERT INTO messages (user_id, username, message_text, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, user_id, username, message_text, created_at',
+        [messageData.userId || null, messageData.username || 'Anonymous', messageData.text]
       );
       
-      // Broadcast to ALL clients EXCEPT the sender
-      socket.broadcast.emit('new_message', result.rows[0]);
+      if (result.rows.length === 0) {
+        console.error('❌ Failed to insert message');
+        socket.emit('message_error', { error: 'Failed to save message' });
+        return;
+      }
       
-      // Send back to sender with confirmed flag
-      socket.emit('new_message', {
-        ...result.rows[0],
-        confirmed: true
-      });
+      const savedMessage = result.rows[0];
+      console.log('✅ Message saved to database, ID:', savedMessage.id);
+      
+      // Broadcast to ALL clients
+      io.emit('new_message', savedMessage);
       
     } catch (error) {
-      console.error('Send message error:', error);
+      console.error('❌ Send message error:', error);
+      socket.emit('message_error', { error: error.message });
     }
   });
 
   // Handle private messages
   socket.on('private_message', async (data) => {
-    console.log('📨 Private message:', data.fromName, '→', data.toUserName);
+    console.log('📨 Private message from', data.fromName, 'to', data.toUserName);
     
     try {
-      // Save to database
+      // Save to database FIRST
       const result = await pool.query(
-        `INSERT INTO private_messages (sender_id, sender_name, receiver_id, receiver_name, message_text) 
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        `INSERT INTO private_messages (sender_id, sender_name, receiver_id, receiver_name, message_text, created_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW()) 
+         RETURNING id, sender_id, sender_name, receiver_id, receiver_name, message_text, is_read, created_at`,
         [data.from, data.fromName, data.toUserId, data.toUserName || '', data.text]
       );
+      
+      if (result.rows.length === 0) {
+        console.error('❌ Failed to insert private message');
+        socket.emit('private_message_error', { error: 'Failed to save message' });
+        return;
+      }
       
       const savedMessage = result.rows[0];
       console.log('✅ Private message saved to DB, ID:', savedMessage.id);
       
-      // Find receiver's socket
+      // Find receiver's socket and deliver
       let delivered = false;
       for (let [socketId, user] of connectedUsers) {
         if (user.id === data.toUserId) {
-          // Send to receiver
-          io.to(socketId).emit('private_message', {
-            id: savedMessage.id,
-            sender_id: data.from,
-            sender_name: data.fromName,
-            receiver_id: data.toUserId,
-            receiver_name: data.toUserName || '',
-            message_text: data.text,
-            is_read: false,
-            created_at: savedMessage.created_at
-          });
+          io.to(socketId).emit('private_message', savedMessage);
           delivered = true;
           console.log('📬 Delivered to:', user.name);
           break;
         }
       }
       
-      if (!delivered) {
-        console.log('📭 Receiver not online, message saved for later');
-      }
-      
-      // Send confirmation to sender (ONLY confirmation, not the full message)
+      // Always send confirmation to sender
       socket.emit('private_message_sent', {
         id: savedMessage.id,
         delivered: delivered,
         created_at: savedMessage.created_at
       });
       
+      if (!delivered) {
+        console.log('📭 Receiver offline, message saved to database');
+      }
+      
     } catch (error) {
       console.error('❌ Private message error:', error);
-      socket.emit('private_message_error', { error: 'Failed to send message' });
+      socket.emit('private_message_error', { error: error.message });
     }
   });
 
@@ -747,14 +644,16 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     const user = connectedUsers.get(socket.id);
     if (user) {
-      await pool.query(
-        "UPDATE students SET status = 'offline' WHERE id = $1",
-        [user.id]
-      );
-      
-      await broadcastStudentUpdate();
-      
-      console.log('👋 User offline:', user.name);
+      try {
+        await pool.query(
+          "UPDATE students SET status = 'offline' WHERE id = $1",
+          [user.id]
+        );
+        await broadcastStudentUpdate();
+        console.log('👋 User offline:', user.name);
+      } catch (error) {
+        console.error('❌ Disconnect error:', error);
+      }
       connectedUsers.delete(socket.id);
     }
     console.log('🔌 Client disconnected:', socket.id);
@@ -770,63 +669,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// TEMPORARY - Password fix endpoint
-app.get('/api/fix-passwords', async (req, res) => {
-  try {
-    // Update admin
-    await pool.query(`UPDATE class_users SET password = 'adminL3SOD@2024' WHERE username = 'admin'`);
-    
-    // Update all students with their unique passwords
-    const students = await pool.query(`SELECT id, full_name FROM class_users WHERE is_admin = FALSE OR (is_admin = TRUE AND username != 'admin')`);
-    
-    for (const s of students.rows) {
-      const firstName = s.full_name.split(' ')[0].toLowerCase();
-      const newPassword = firstName + 'L3SOD@' + s.id;
-      await pool.query(`UPDATE class_users SET password = $1 WHERE id = $2`, [newPassword, s.id]);
-    }
-    
-    // Update teachers
-    await pool.query(`UPDATE class_users SET password = 'teacherL3SOD@2024' WHERE is_admin = TRUE AND username != 'admin'`);
-    
-    res.json({ success: true, message: 'All passwords updated!' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-// TEMPORARY - Sync students table
-app.get('/api/sync-students', async (req, res) => {
-  try {
-    // Get all users from class_users
-    const users = await pool.query('SELECT id, full_name, is_admin FROM class_users ORDER BY id');
-    
-    let count = 0;
-    for (const user of users.rows) {
-      const role = user.is_admin ? (user.id === 1 ? 'Admin' : 'Teacher') : 'Student';
-      await pool.query(
-        `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
-         VALUES ($1, $2, $3, $4, 'L3SOD Member', ARRAY['HTML','CSS','JavaScript'], 'offline')
-         ON CONFLICT (id) DO UPDATE SET full_name = $2, role = $3`,
-        [user.id, user.full_name, role, user.full_name.toLowerCase().replace(/ /g, '.') + '@class.com']
-      );
-      count++;
-    }
-    
-    res.json({ success: true, message: `Synced ${count} students!` });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log('═══════════════════════════════════════');
+  console.log('═══════════════════════════════════════════');
   console.log('🚀 Server running on http://localhost:' + PORT);
   console.log('📁 Upload limit: 10MB');
   console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
   console.log('🔗 Frontend origins:', allowedOrigins.join(', '));
-  console.log('📨 Private messages: Saved to database');
-  console.log('═══════════════════════════════════════');
+  console.log('📨 Messages persisted to database: YES');
+  console.log('═══════════════════════════════════════════');
 });

@@ -64,19 +64,19 @@ const Home = ({ isDarkTheme }) => {
     ],
     testimonials: [
       {
-        name: 'Sarah Johnson',
+        name: 'Ntirenganya Janvier',
         role: 'Full Stack Developer',
         text: 'This platform changed how our class collaborates. The chat feature is seamless!',
-        avatar: '👩‍💻'
+        avatar: '👨‍💻'
       },
       {
-        name: 'Mike Chen',
+        name: 'Imanirumva Pacifique',
         role: 'Frontend Engineer',
         text: 'Amazing community! I found so much inspiration from my classmates\' projects.',
         avatar: '👨‍💻'
       },
       {
-        name: 'Emily Rodriguez',
+        name: 'Byiringiro Elie',
         role: 'UI/UX Designer',
         text: 'Perfect place to showcase work and connect with talented developers.',
         avatar: '👩‍🎨'
@@ -545,13 +545,13 @@ const Home = ({ isDarkTheme }) => {
               <h3>L3SOD Class</h3>
               <p>Level 3 Software Development - Building the future, one line of code at a time.</p>
               <div className="footer-socials">
-                <a href="#" className="social-link" title="GitHub">
+                <a href="https://github.com/kalumeri" target="_blank" rel="noopener noreferrer" className="social-link" title="GitHub">
                   <Icon icon={githubIcon} width="24" height="24" />
                 </a>
-                <a href="#" className="social-link" title="LinkedIn">
+                <a href="https://www.linkedin.com/in/mugishaishaq/" target="_blank" rel="noopener noreferrer" className="social-link" title="LinkedIn">
                   <Icon icon={linkedinIcon} width="24" height="24" />
                 </a>
-                <a href="#" className="social-link" title="Twitter">
+                <a href="https://twitter.com/mugishaishaq/" target="_blank" rel="noopener noreferrer" className="social-link" title="Twitter">
                   <Icon icon={twitterIcon} width="24" height="24" />
                 </a>
               </div>
@@ -582,15 +582,15 @@ const Home = ({ isDarkTheme }) => {
               <div className="contact-info">
                 <p>
                   <Icon icon={emailIcon} width="18" height="18" />
-                  <a href="mailto:info@l3sod.com">info@l3sod.com</a>
+                  <a href="mailto:wolfras87@gmail.com">wolfras87@gmail.com</a>
                 </p>
                 <p>
                   <Icon icon={phoneIcon} width="18" height="18" />
-                  <a href="tel:+1234567890">+1 (234) 567-890</a>
+                  <a href="tel:+250793159478">+250 793159478</a>
                 </p>
                 <p>
                   <Icon icon={mapMarkerIcon} width="18" height="18" />
-                  <span>Tech Academy, City</span>
+                  <span>Essa Nyarugunga, Kigali</span>
                 </p>
               </div>
             </div>
