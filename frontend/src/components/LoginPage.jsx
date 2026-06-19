@@ -160,6 +160,9 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
                 <p>Don't have an account? <Link to="/register">Register here</Link></p>
                 <p className="register-note">*Registration requires admin approval</p>
               </div>
+              <div className="forgot-password-link">
+                <Link to="/forgot-password">Forgot Password?</Link>
+              </div>
             </form>
           </div>
         </div>

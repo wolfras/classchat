@@ -443,3 +443,16 @@
   margin-bottom: 1rem;
   text-align: center;
 }
+
+.forgot-password-link {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.forgot-password-link a {
+  color: #7c3aed;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.forgot-password-link a:hover {
+  text-decoration: underline;
+}

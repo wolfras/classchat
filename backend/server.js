@@ -810,6 +810,17 @@ io.on('connection', (socket) => {
   });
 });
 
+// TEMPORARY - Add reset token columns
+app.get('/api/add-reset-columns', async (req, res) => {
+  try {
+    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(20)');
+    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP');
+    res.json({ success: true, message: 'Reset token columns added!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('🔥 Unhandled error:', err);
@@ -817,6 +828,124 @@ app.use((err, req, res, next) => {
     success: false, 
     message: 'Internal server error: ' + err.message 
   });
+});
+
+// ==================== PASSWORD RESET ROUTES ====================
+
+// Request password reset
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Username or email is required' });
+    }
+    
+    // Find user
+    const result = await pool.query(
+      'SELECT id, username, full_name, email FROM class_users WHERE username = $1 OR email = $1',
+      [email.toLowerCase()]
+    );
+    
+    if (result.rows.length === 0) {
+      // Don't reveal if user exists or not (security)
+      return res.json({ success: true, message: 'If the account exists, a reset token has been generated.' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Generate reset token
+    const resetToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+    
+    // Store reset token
+    await pool.query(
+      'UPDATE class_users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [resetToken, resetExpiry, user.id]
+    );
+    
+    console.log('🔑 Reset token for', user.username, ':', resetToken);
+    
+    // Since we don't have email, return the token (in production, send via email)
+    res.json({ 
+      success: true, 
+      message: 'Reset token generated. Show this to the user or send via email.',
+      resetToken: resetToken, // REMOVE in production - only for admin
+      username: user.username
+    });
+  } catch (error) {
+    console.error('❌ Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Reset password with token
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { username, token, newPassword } = req.body;
+    
+    if (!username || !token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+    
+    // Find user with valid reset token
+    const result = await pool.query(
+      'SELECT id, username FROM class_users WHERE username = $1 AND reset_token = $2 AND reset_token_expiry > NOW()',
+      [username.toLowerCase(), token.toUpperCase()]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Update password and clear reset token
+    await pool.query(
+      'UPDATE class_users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
+      [newPassword, user.id]
+    );
+    
+    console.log('✅ Password reset for:', user.username);
+    res.json({ success: true, message: 'Password reset successfully! You can now login with your new password.' });
+  } catch (error) {
+    console.error('❌ Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Admin: Generate reset token for any user
+app.post('/api/admin/generate-reset-token/:userId', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, username, full_name FROM class_users WHERE id = $1', [req.params.userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const user = result.rows[0];
+    const resetToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    
+    await pool.query(
+      'UPDATE class_users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [resetToken, resetExpiry, user.id]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Reset token generated',
+      resetToken: resetToken,
+      username: user.username,
+      fullName: user.full_name
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Start server

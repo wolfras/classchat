@@ -7,6 +7,7 @@ import Gallery from './components/Gallery';
 import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
 import Register from './components/Register';
+import ForgotPassword from './components/ForgotPassword';
  // import ChatWrapper from './components/ChatWrapper';
 import LoginPage from './components/LoginPage';
 import ChatPage from './components/ChatPage';
@@ -54,6 +55,8 @@ function App() {
   } />
 <Route path="/register" element={<Register isDarkTheme={isDarkTheme} />} />
 </Routes>
+
+<Route path="/forgot-password" element={<ForgotPassword isDarkTheme={isDarkTheme} />} />
         </main>
 
       
