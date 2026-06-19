@@ -958,3 +958,71 @@ textarea.admin-input {
     outline-offset: 2px;
   }
 }
+
+/* Tabs */
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  margin-bottom: -2px;
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.admin-tab.active {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
+}
+
+.admin-tab-badge {
+  background: #ef4444;
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Approve/Reject buttons */
+.admin-approve-btn {
+  color: #10b981 !important;
+}
+
+.admin-approve-btn:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Pending stat */
+.stat-icon.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+/* Requests section */
+.admin-requests-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}

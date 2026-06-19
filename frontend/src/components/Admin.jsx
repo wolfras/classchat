@@ -13,6 +13,9 @@ import checkCircleIcon from '@iconify/icons-mdi/check-circle';
 import closeCircleIcon from '@iconify/icons-mdi/close-circle';
 import chartLineIcon from '@iconify/icons-mdi/chart-line';
 import accountMultipleIcon from '@iconify/icons-mdi/account-multiple';
+import accountCheckIcon from '@iconify/icons-mdi/account-check';
+import accountClockIcon from '@iconify/icons-mdi/account-clock';
+import accountCancelIcon from '@iconify/icons-mdi/account-cancel';
 import { API_URL } from '../config';
 import './Admin.css';
 
@@ -24,6 +27,13 @@ const Admin = ({ isDarkTheme }) => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
+  
+  // Tabs
+  const [activeTab, setActiveTab] = useState('students'); // 'students' or 'requests'
+  
+  // Registration Requests
+  const [registrationRequests, setRegistrationRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +68,12 @@ const Admin = ({ isDarkTheme }) => {
   }, []);
 
   useEffect(() => {
+    if (activeTab === 'requests') {
+      fetchRegistrationRequests();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     applyFiltersAndSort();
   }, [students, searchQuery, roleFilter, statusFilter, sortBy, sortOrder]);
 
@@ -80,10 +96,64 @@ const Admin = ({ isDarkTheme }) => {
     }
   };
 
+  const fetchRegistrationRequests = async () => {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/registration-requests`, {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRegistrationRequests(data.requests);
+      }
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/approve-registration/${requestId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMessage('User approved successfully!', 'success');
+        fetchRegistrationRequests();
+        fetchStudents();
+      } else {
+        showMessage(data.message || 'Approval failed', 'error');
+      }
+    } catch (err) {
+      showMessage('Connection error', 'error');
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    if (!window.confirm('Reject this registration request?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/reject-registration/${requestId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMessage('Request rejected', 'success');
+        fetchRegistrationRequests();
+      } else {
+        showMessage(data.message || 'Rejection failed', 'error');
+      }
+    } catch (err) {
+      showMessage('Connection error', 'error');
+    }
+  };
+
   const applyFiltersAndSort = () => {
     let filtered = [...students];
 
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(s =>
@@ -93,29 +163,20 @@ const Admin = ({ isDarkTheme }) => {
       );
     }
 
-    // Role filter
     if (roleFilter !== 'all') {
       filtered = filtered.filter(s => s.role === roleFilter);
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(s => s.status === statusFilter);
     }
 
-    // Sorting
     filtered.sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
-
-      if (sortBy === 'name') {
-        aVal = a.full_name;
-        bVal = b.full_name;
-      }
-
+      if (sortBy === 'name') { aVal = a.full_name; bVal = b.full_name; }
       if (aVal === undefined) aVal = '';
       if (bVal === undefined) bVal = '';
-
       const comparison = aVal.toString().localeCompare(bVal.toString());
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -344,7 +405,7 @@ const Admin = ({ isDarkTheme }) => {
           <Icon icon={shieldIcon} width="32" height="32" />
           Admin Panel
         </h1>
-        <p className="admin-subtitle">Manage students, view analytics, and control the platform</p>
+        <p className="admin-subtitle">Manage students, approve registrations, and control the platform</p>
       </div>
 
       {/* Statistics */}
@@ -364,11 +425,11 @@ const Admin = ({ isDarkTheme }) => {
           <p>Online Now</p>
         </div>
         <div className="admin-stat-card">
-          <div className="stat-icon">
-            <Icon icon={chartLineIcon} width="24" height="24" />
+          <div className="stat-icon pending">
+            <Icon icon={accountClockIcon} width="24" height="24" />
           </div>
-          <h3>{filteredStudents.length}</h3>
-          <p>Filtered Results</p>
+          <h3>{registrationRequests.length}</h3>
+          <p>Pending Requests</p>
         </div>
       </div>
 
@@ -380,310 +441,253 @@ const Admin = ({ isDarkTheme }) => {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="admin-toolbar">
+      {/* Tabs */}
+      <div className="admin-tabs">
         <button
-          className="admin-btn admin-btn-primary"
-          onClick={() => {
-            setEditingStudent(null);
-            setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
-            setShowAddForm(!showAddForm);
-          }}
+          className={`admin-tab ${activeTab === 'students' ? 'active' : ''}`}
+          onClick={() => setActiveTab('students')}
         >
-          <Icon icon={accountPlusIcon} width="18" height="18" />
-          Add Student
+          <Icon icon={accountMultipleIcon} width="20" height="20" />
+          Students
         </button>
-
-        <div className="admin-toolbar-right">
-          <button className="admin-btn admin-btn-secondary" onClick={exportToCSV}>
-            <Icon icon={downloadIcon} width="18" height="18" />
-            Export CSV
-          </button>
-
-          {selectedStudents.size > 0 && (
-            <button className="admin-btn admin-btn-danger" onClick={handleBulkDelete}>
-              <Icon icon={deleteIcon} width="18" height="18" />
-              Delete {selectedStudents.size}
-            </button>
+        <button
+          className={`admin-tab ${activeTab === 'requests' ? 'active' : ''}`}
+          onClick={() => setActiveTab('requests')}
+        >
+          <Icon icon={accountClockIcon} width="20" height="20" />
+          Registration Requests
+          {registrationRequests.length > 0 && (
+            <span className="admin-tab-badge">{registrationRequests.length}</span>
           )}
-        </div>
+        </button>
       </div>
 
-      {/* Add/Edit Form */}
-      {(showAddForm || showEditForm) && (
-        <div className="admin-form-container">
-          <form onSubmit={showEditForm ? handleEditSubmit : handleSubmit} className="admin-form">
-            <h3>{showEditForm ? 'Edit Student' : 'Add New Student'}</h3>
+      {/* ==================== STUDENTS TAB ==================== */}
+      {activeTab === 'students' && (
+        <>
+          {/* Toolbar */}
+          <div className="admin-toolbar">
+            <button
+              className="admin-btn admin-btn-primary"
+              onClick={() => {
+                setEditingStudent(null);
+                setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+                setShowAddForm(!showAddForm);
+              }}
+            >
+              <Icon icon={accountPlusIcon} width="18" height="18" />
+              Add Student
+            </button>
 
-            <div className="admin-form-grid">
-              <input
-                type="text"
-                placeholder="Full Name *"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                required
-                className="admin-input"
-              />
-              <input
-                type="text"
-                placeholder="Role"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="admin-input"
-              />
-            </div>
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="admin-input"
-            />
-
-            <textarea
-              placeholder="Bio"
-              value={formData.bio}
-              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-              rows="3"
-              className="admin-input"
-            />
-
-            <input
-              type="text"
-              placeholder="Skills (comma separated)"
-              value={formData.skills}
-              onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-              className="admin-input"
-            />
-
-            {/* File Upload */}
-            <div className="admin-file-upload">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Icon icon={uploadIcon} width="32" height="32" />
-                <p>{selectedFile ? selectedFile.name : 'Click to upload student photo'}</p>
-              </label>
-            </div>
-
-            <div className="admin-form-actions">
-              <button type="submit" className="admin-btn admin-btn-success">
-                {showEditForm ? 'Update Student' : 'Add Student'}
+            <div className="admin-toolbar-right">
+              <button className="admin-btn admin-btn-secondary" onClick={exportToCSV}>
+                <Icon icon={downloadIcon} width="18" height="18" />
+                Export CSV
               </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-secondary"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setShowEditForm(false);
-                  setEditingStudent(null);
-                }}
-              >
-                Cancel
+
+              {selectedStudents.size > 0 && (
+                <button className="admin-btn admin-btn-danger" onClick={handleBulkDelete}>
+                  <Icon icon={deleteIcon} width="18" height="18" />
+                  Delete {selectedStudents.size}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Add/Edit Form */}
+          {(showAddForm || showEditForm) && (
+            <div className="admin-form-container">
+              <form onSubmit={showEditForm ? handleEditSubmit : handleSubmit} className="admin-form">
+                <h3>{showEditForm ? 'Edit Student' : 'Add New Student'}</h3>
+
+                <div className="admin-form-grid">
+                  <input type="text" placeholder="Full Name *" value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} required className="admin-input" />
+                  <input type="text" placeholder="Role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="admin-input" />
+                </div>
+
+                <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="admin-input" />
+                <textarea placeholder="Bio" value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} rows="3" className="admin-input" />
+                <input type="text" placeholder="Skills (comma separated)" value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="admin-input" />
+
+                <div className="admin-file-upload">
+                  <input type="file" accept="image/*" onChange={handleFileChange} id="file-upload" />
+                  <label htmlFor="file-upload">
+                    <Icon icon={uploadIcon} width="32" height="32" />
+                    <p>{selectedFile ? selectedFile.name : 'Click to upload student photo'}</p>
+                  </label>
+                </div>
+
+                <div className="admin-form-actions">
+                  <button type="submit" className="admin-btn admin-btn-success">
+                    {showEditForm ? 'Update Student' : 'Add Student'}
+                  </button>
+                  <button type="button" className="admin-btn admin-btn-secondary" onClick={() => { setShowAddForm(false); setShowEditForm(false); setEditingStudent(null); }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Search & Filter */}
+          <div className="admin-search-bar">
+            <div className="admin-search-input-wrapper">
+              <Icon icon={searchIcon} width="20" height="20" className="admin-search-icon" />
+              <input type="text" placeholder="Search by name, email, or username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="admin-search-input" />
+            </div>
+            <div className="admin-filters">
+              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="admin-filter-select">
+                <option value="all">All Roles</option>
+                {getRoleOptions().map(role => (<option key={role} value={role}>{role}</option>))}
+              </select>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="admin-filter-select">
+                <option value="all">All Status</option>
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+              </select>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="admin-filter-select">
+                <option value="name">Sort by Name</option>
+                <option value="email">Sort by Email</option>
+                <option value="role">Sort by Role</option>
+                <option value="status">Sort by Status</option>
+              </select>
+              <button className="admin-sort-toggle" onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}>
+                <Icon icon={sortIcon} width="18" height="18" />
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Results Info */}
+          <div className="admin-results-info">
+            <p>Showing {paginatedStudents.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length} students</p>
+            <div className="admin-items-per-page">
+              <label>Per page:</label>
+              <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="admin-filter-select">
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Students Table */}
+          <div className="admin-table-container">
+            {filteredStudents.length === 0 ? (
+              <div className="admin-empty-state">
+                <Icon icon={accountMultipleIcon} width="48" height="48" />
+                <p>No students found</p>
+                <span>Try adjusting your filters or add a new student</span>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th className="admin-th-checkbox"><input type="checkbox" checked={selectAll} onChange={toggleSelectAll} className="admin-checkbox" /></th>
+                      <th>Photo</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedStudents.map(student => (
+                      <tr key={student.id} className="admin-tr">
+                        <td className="admin-td-checkbox"><input type="checkbox" checked={selectedStudents.has(student.id)} onChange={() => toggleSelectStudent(student.id)} className="admin-checkbox" /></td>
+                        <td className="admin-td-photo">
+                          {student.photo ? <img src={student.photo} alt={student.full_name} /> : <div className="admin-avatar-placeholder">{student.full_name?.split(' ').map(n => n[0]).join('')}</div>}
+                        </td>
+                        <td className="admin-td-name">{student.full_name}</td>
+                        <td className="admin-td-email">{student.email || '-'}</td>
+                        <td className="admin-td-role"><span className="admin-role-badge">{student.role || '-'}</span></td>
+                        <td className="admin-td-status"><span className={`admin-status-badge admin-status-${student.status}`}>{student.status}</span></td>
+                        <td className="admin-td-actions">
+                          <button className="admin-action-btn admin-edit-btn" onClick={() => startEdit(student)} title="Edit"><Icon icon={pencilIcon} width="16" height="16" /></button>
+                          <button className="admin-action-btn admin-delete-btn" onClick={() => handleDelete(student.id)} title="Delete"><Icon icon={deleteIcon} width="16" height="16" /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="admin-pagination">
+              <button className="admin-pagination-btn" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>← Previous</button>
+              <div className="admin-pagination-pages">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button key={page} className={`admin-pagination-page ${currentPage === page ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
+                ))}
+              </div>
+              <button className="admin-pagination-btn" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}>Next →</button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Search & Filter */}
-      <div className="admin-search-bar">
-        <div className="admin-search-input-wrapper">
-          <Icon icon={searchIcon} width="20" height="20" className="admin-search-icon" />
-          <input
-            type="text"
-            placeholder="Search by name, email, or username..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="admin-search-input"
-          />
-        </div>
+      {/* ==================== REGISTRATION REQUESTS TAB ==================== */}
+      {activeTab === 'requests' && (
+        <div className="admin-requests-section">
+          <h2>
+            <Icon icon={accountClockIcon} width="24" height="24" />
+            Pending Registration Requests
+          </h2>
 
-        <div className="admin-filters">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="admin-filter-select"
-          >
-            <option value="all">All Roles</option>
-            {getRoleOptions().map(role => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="admin-filter-select"
-          >
-            <option value="all">All Status</option>
-            <option value="online">Online</option>
-            <option value="offline">Offline</option>
-          </select>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="admin-filter-select"
-          >
-            <option value="name">Sort by Name</option>
-            <option value="email">Sort by Email</option>
-            <option value="role">Sort by Role</option>
-            <option value="status">Sort by Status</option>
-          </select>
-
-          <button
-            className="admin-sort-toggle"
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
-          >
-            <Icon icon={sortIcon} width="18" height="18" />
-          </button>
-        </div>
-      </div>
-
-      {/* Results Info */}
-      <div className="admin-results-info">
-        <p>
-          Showing {paginatedStudents.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{' '}
-          {Math.min(currentPage * itemsPerPage, filteredStudents.length)} of {filteredStudents.length} students
-        </p>
-        <div className="admin-items-per-page">
-          <label>Per page:</label>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="admin-filter-select"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Students Table */}
-      <div className="admin-table-container">
-        {filteredStudents.length === 0 ? (
-          <div className="admin-empty-state">
-            <Icon icon={accountMultipleIcon} width="48" height="48" />
-            <p>No students found</p>
-            <span>Try adjusting your filters or add a new student</span>
-          </div>
-        ) : (
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th className="admin-th-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      onChange={toggleSelectAll}
-                      className="admin-checkbox"
-                    />
-                  </th>
-                  <th>Photo</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedStudents.map(student => (
-                  <tr key={student.id} className="admin-tr">
-                    <td className="admin-td-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.has(student.id)}
-                        onChange={() => toggleSelectStudent(student.id)}
-                        className="admin-checkbox"
-                      />
-                    </td>
-                    <td className="admin-td-photo">
-                      {student.photo ? (
-                        <img src={student.photo} alt={student.full_name} />
-                      ) : (
-                        <div className="admin-avatar-placeholder">
-                          {student.full_name?.split(' ').map(n => n[0]).join('')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="admin-td-name">{student.full_name}</td>
-                    <td className="admin-td-email">{student.email || '-'}</td>
-                    <td className="admin-td-role">
-                      <span className="admin-role-badge">{student.role || '-'}</span>
-                    </td>
-                    <td className="admin-td-status">
-                      <span className={`admin-status-badge admin-status-${student.status}`}>
-                        {student.status}
-                      </span>
-                    </td>
-                    <td className="admin-td-actions">
-                      <button
-                        className="admin-action-btn admin-edit-btn"
-                        onClick={() => startEdit(student)}
-                        title="Edit"
-                      >
-                        <Icon icon={pencilIcon} width="16" height="16" />
-                      </button>
-                      <button
-                        className="admin-action-btn admin-delete-btn"
-                        onClick={() => handleDelete(student.id)}
-                        title="Delete"
-                      >
-                        <Icon icon={deleteIcon} width="16" height="16" />
-                      </button>
-                    </td>
+          {requestsLoading ? (
+            <div className="admin-loading"><p>Loading requests...</p></div>
+          ) : registrationRequests.length === 0 ? (
+            <div className="admin-empty-state">
+              <Icon icon={accountCheckIcon} width="48" height="48" />
+              <p>No pending requests</p>
+              <span>All registration requests have been processed</span>
+            </div>
+          ) : (
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Requested</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="admin-pagination">
-          <button
-            className="admin-pagination-btn"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-          >
-            ← Previous
-          </button>
-
-          <div className="admin-pagination-pages">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                className={`admin-pagination-page ${currentPage === page ? 'active' : ''}`}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-
-          <button
-            className="admin-pagination-btn"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Next →
-          </button>
+                </thead>
+                <tbody>
+                  {registrationRequests.map(request => (
+                    <tr key={request.id} className="admin-tr">
+                      <td className="admin-td-name">{request.username}</td>
+                      <td className="admin-td-name">{request.full_name}</td>
+                      <td className="admin-td-email">{request.email}</td>
+                      <td className="admin-td-email">{new Date(request.requested_at).toLocaleDateString()}</td>
+                      <td className="admin-td-actions">
+                        <button
+                          className="admin-action-btn admin-approve-btn"
+                          onClick={() => handleApproveRequest(request.id)}
+                          title="Approve"
+                        >
+                          <Icon icon={checkCircleIcon} width="18" height="18" />
+                        </button>
+                        <button
+                          className="admin-action-btn admin-delete-btn"
+                          onClick={() => handleRejectRequest(request.id)}
+                          title="Reject"
+                        >
+                          <Icon icon={closeCircleIcon} width="18" height="18" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

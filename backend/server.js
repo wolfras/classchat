@@ -186,7 +186,7 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     
     const result = await pool.query(
-      'SELECT * FROM class_users WHERE username = $1 OR full_name = $1',
+      'SELECT * FROM class_users WHERE username = $1 OR full_name = $1 OR email = $1',
       [email]
     );
     
@@ -195,6 +195,14 @@ app.post('/api/login', async (req, res) => {
     }
     
     const user = result.rows[0];
+    
+    // Check if user is approved (for new registrations)
+    if (user.approved === false) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Your account is pending admin approval. Please wait for admin to approve your registration.' 
+      });
+    }
     
     // Simple comparison - Plain text passwords
     if (password !== user.password) {
@@ -256,6 +264,67 @@ app.get('/api/session', (req, res) => {
     });
   } else {
     res.json({ authenticated: false });
+  }
+});
+
+// ==================== REGISTRATION ROUTES ====================
+
+// Register new user (creates pending request)
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password, fullName, email } = req.body;
+    
+    if (!username || !password || !fullName || !email) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    
+    // Check if username or email already exists in class_users
+    const existingUser = await pool.query(
+      'SELECT id FROM class_users WHERE username = $1 OR email = $2',
+      [username.toLowerCase(), email.toLowerCase()]
+    );
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Username or email already exists' });
+    }
+    
+    // Check if there's already a pending request
+    const existingRequest = await pool.query(
+      'SELECT id FROM registration_requests WHERE username = $1 OR email = $2',
+      [username.toLowerCase(), email.toLowerCase()]
+    );
+    if (existingRequest.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'A pending registration request already exists for this username or email' });
+    }
+    
+    // Insert registration request
+    await pool.query(
+      'INSERT INTO registration_requests (username, password, full_name, email, status) VALUES ($1, $2, $3, $4, $5)',
+      [username.toLowerCase(), password, fullName, email.toLowerCase(), 'pending']
+    );
+    
+    res.json({ success: true, message: 'Registration request submitted. Please wait for admin approval.' });
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+});
+
+// Check registration status
+app.get('/api/registration-status/:email', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, full_name, email, status, requested_at, approved_at FROM registration_requests WHERE email = $1 ORDER BY id DESC LIMIT 1',
+      [req.params.email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: true, found: false, message: 'No registration request found' });
+    }
+    
+    res.json({ success: true, found: true, request: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Status check error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -505,6 +574,98 @@ app.delete('/api/admin/students/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ==================== ADMIN: REGISTRATION REQUESTS ====================
+
+// Get all pending registration requests
+app.get('/api/admin/registration-requests', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM registration_requests WHERE status = $1 ORDER BY requested_at DESC',
+      ['pending']
+    );
+    res.json({ success: true, requests: result.rows });
+  } catch (error) {
+    console.error('❌ Error fetching requests:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Approve a registration request
+app.post('/api/admin/approve-registration/:id', requireAdmin, async (req, res) => {
+  try {
+    const request = await pool.query('SELECT * FROM registration_requests WHERE id = $1', [req.params.id]);
+    if (request.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+    
+    const r = request.rows[0];
+    
+    // Create the user in class_users
+    const result = await pool.query(
+      'INSERT INTO class_users (username, password, full_name, email, is_admin, approved) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [r.username, r.password, r.full_name, r.email, false, true]
+    );
+    
+    const newUserId = result.rows[0].id;
+    
+    // Add to students table
+    await pool.query(
+      'INSERT INTO students (id, full_name, role, email, bio, skills, status) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+      [newUserId, r.full_name, 'Student', r.email, 'L3SOD Student', ARRAY['HTML','CSS','JavaScript'], 'offline']
+    );
+    
+    // Update request status
+    await pool.query(
+      'UPDATE registration_requests SET status = $1, approved_at = NOW(), approved_by = $2 WHERE id = $3',
+      ['approved', req.session.userId, req.params.id]
+    );
+    
+    console.log('✅ User approved:', r.username, 'New ID:', newUserId);
+    res.json({ success: true, message: 'User approved successfully!', userId: newUserId });
+  } catch (error) {
+    console.error('❌ Approval error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+});
+
+// Reject a registration request
+app.post('/api/admin/reject-registration/:id', requireAdmin, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE registration_requests SET status = $1 WHERE id = $2',
+      ['rejected', req.params.id]
+    );
+    res.json({ success: true, message: 'Registration request rejected' });
+  } catch (error) {
+    console.error('❌ Rejection error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== DATABASE MIGRATION (TEMPORARY) ====================
+app.get('/api/migrate-db', async (req, res) => {
+  try {
+    await pool.query(`ALTER TABLE class_users ADD COLUMN IF NOT EXISTS email VARCHAR(150)`);
+    await pool.query(`ALTER TABLE class_users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS registration_requests (
+      id SERIAL PRIMARY KEY, 
+      username VARCHAR(50) UNIQUE NOT NULL, 
+      password VARCHAR(255) NOT NULL, 
+      full_name VARCHAR(100) NOT NULL, 
+      email VARCHAR(150) NOT NULL, 
+      status VARCHAR(20) DEFAULT 'pending', 
+      requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+      approved_at TIMESTAMP, 
+      approved_by INTEGER REFERENCES class_users(id)
+    )`);
+    await pool.query(`UPDATE class_users SET approved = TRUE WHERE approved = FALSE`);
+    await pool.query(`UPDATE class_users SET email = 'admin@class.com' WHERE username = 'admin'`);
+    res.json({ success: true, message: 'Database migrated! Registration system ready.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ==================== SOCKET.IO ====================
 
 io.on('connection', (socket) => {
@@ -678,5 +839,6 @@ server.listen(PORT, () => {
   console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
   console.log('🔗 Frontend origins:', allowedOrigins.join(', '));
   console.log('📨 Messages persisted to database: YES');
+  console.log('📝 Registration system: ACTIVE');
   console.log('═══════════════════════════════════════════');
 });

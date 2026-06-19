@@ -172,7 +172,10 @@ const LoginPage = ({ isDarkTheme, setCurrentUser }) => {
                   {error}
                 </div>
               )}
-
+  <div className="register-link">
+  <p>Don't have an account? <Link to="/register">Register here</Link></p>
+  <p className="register-note">*Registration requires admin approval</p>
+</div>
               <button
                 type="submit"
                 className="login-submit-btn"

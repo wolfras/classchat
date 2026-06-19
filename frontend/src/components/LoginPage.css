@@ -402,3 +402,44 @@
     border: 1px solid #ccc;
   }
 }
+
+.register-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  text-decoration: none;
+}
+
+.register-link p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.register-link a {
+  color: #7c3aed;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-link a:hover {
+  text-decoration: none;
+}
+
+.register-note {
+  font-size: 0.75rem !important;
+  color: var(--text-tertiary) !important;
+  margin-top: 0.25rem;
+  font-style: italic;
+  text-decoration: none;
+}
+
+.login-success {
+  padding: 0.75rem 1rem;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  color: #10b981;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}

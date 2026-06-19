@@ -6,6 +6,8 @@ import emailIcon from '@iconify/icons-mdi/email';
 import accountIcon from '@iconify/icons-mdi/account';
 import circleIcon from '@iconify/icons-mdi/circle';
 import closeIcon from '@iconify/icons-mdi/close';
+import chevronLeftIcon from '@iconify/icons-mdi/chevron-left';
+import chevronRightIcon from '@iconify/icons-mdi/chevron-right';
 import { API_URL } from '../config';
 import './Gallery.css';
 
@@ -15,6 +17,10 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 12;
 
   useEffect(() => {
     fetchStudents();
@@ -34,6 +40,7 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
     }
   };
 
+  // Filter students
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (student.role && student.role.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -41,6 +48,23 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
                        (student.role && student.role.toLowerCase().includes(filterRole.toLowerCase()));
     return matchesSearch && matchesRole;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const indexOfLastStudent = currentPage * studentsPerPage;
+  const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
+  const currentStudents = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole]);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of grid
+    document.querySelector('.students-grid-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const roles = ['all', ...new Set(students.map(s => s.role).filter(Boolean))];
 
@@ -94,70 +118,115 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
             <p>Try adjusting your search or filter</p>
           </div>
         ) : (
-          <div className="students-grid">
-            {filteredStudents.map(student => (
-              <div
-                key={student.id}
-                className="student-card"
-                onClick={() => setSelectedStudent(student)}
-              >
-                {/* Square large photo */}
-                <div className="student-photo-container">
-                  {student.photo ? (
-                    <img 
-                      src={student.photo} 
-                      alt={student.full_name}
-                      className="student-photo"
-                    />
-                  ) : (
-                    <div className="student-photo-placeholder">
-                      <span className="student-initials">
-                        {student.full_name?.split(' ').map(n => n[0]).join('')}
-                      </span>
+          <>
+            <div className="students-grid">
+              {currentStudents.map(student => (
+                <div
+                  key={student.id}
+                  className="student-card"
+                  onClick={() => setSelectedStudent(student)}
+                >
+                  {/* Square large photo */}
+                  <div className="student-photo-container">
+                    {student.photo ? (
+                      <img 
+                        src={student.photo} 
+                        alt={student.full_name}
+                        className="student-photo"
+                      />
+                    ) : (
+                      <div className="student-photo-placeholder">
+                        <span className="student-initials">
+                          {student.full_name?.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                    )}
+                    {/* Online/Offline indicator */}
+                    <div className={`student-status ${student.status === 'online' ? 'online' : 'offline'}`}>
+                      <Icon icon={circleIcon} width="12" height="12" />
                     </div>
-                  )}
-                  {/* Online/Offline indicator */}
-                  <div className={`student-status ${student.status === 'online' ? 'online' : 'offline'}`}>
-                    <Icon icon={circleIcon} width="12" height="12" />
                   </div>
-                </div>
 
-                {/* Student Info */}
-                <div className="student-info">
-                  <h3 className="student-name">{student.full_name}</h3>
-                  {student.role && (
-                    <p className="student-role">
-                      <Icon icon={accountIcon} width="14" height="14" />
-                      {student.role}
-                    </p>
-                  )}
-                  {student.email && (
-                    <p className="student-email">
-                      <Icon icon={emailIcon} width="14" height="14" />
-                      {student.email}
-                    </p>
-                  )}
-                </div>
-
-                {/* Skills */}
-                {student.skills && student.skills.length > 0 && (
-                  <div className="student-skills">
-                    {student.skills.slice(0, 3).map((skill, i) => (
-                      <span key={i} className="skill-tag">{skill}</span>
-                    ))}
-                    {student.skills.length > 3 && (
-                      <span className="skill-more">+{student.skills.length - 3}</span>
+                  {/* Student Info */}
+                  <div className="student-info">
+                    <h3 className="student-name">{student.full_name}</h3>
+                    {student.role && (
+                      <p className="student-role">
+                        <Icon icon={accountIcon} width="14" height="14" />
+                        {student.role}
+                      </p>
+                    )}
+                    {student.email && (
+                      <p className="student-email">
+                        <Icon icon={emailIcon} width="14" height="14" />
+                        {student.email}
+                      </p>
                     )}
                   </div>
-                )}
 
-                {/* Click overlay */}
-                <div className="student-card-overlay">
-                  <span>View Profile</span>
+                  {/* Skills */}
+                  {student.skills && student.skills.length > 0 && (
+                    <div className="student-skills">
+                      {student.skills.slice(0, 3).map((skill, i) => (
+                        <span key={i} className="skill-tag">{skill}</span>
+                      ))}
+                      {student.skills.length > 3 && (
+                        <span className="skill-more">+{student.skills.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Click overlay */}
+                  <div className="student-card-overlay">
+                    <span>View Profile</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="page-btn"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Previous page"
+                >
+                  <Icon icon={chevronLeftIcon} width="20" height="20" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="page-numbers">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                    <button
+                      key={number}
+                      className={`page-number ${currentPage === number ? 'active' : ''}`}
+                      onClick={() => handlePageChange(number)}
+                      aria-label={`Page ${number}`}
+                      aria-current={currentPage === number ? 'page' : undefined}
+                    >
+                      {number}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  className="page-btn"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Next page"
+                >
+                  <span>Next</span>
+                  <Icon icon={chevronRightIcon} width="20" height="20" />
+                </button>
+
+                <div className="page-info">
+                  Showing {indexOfFirstStudent + 1}-{Math.min(indexOfLastStudent, filteredStudents.length)} of {filteredStudents.length} students
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </section>
 
