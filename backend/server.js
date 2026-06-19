@@ -580,8 +580,7 @@ app.delete('/api/admin/students/:id', requireAdmin, async (req, res) => {
 app.get('/api/admin/registration-requests', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM registration_requests WHERE status = $1 ORDER BY requested_at DESC',
-      ['pending']
+      "SELECT * FROM registration_requests WHERE status = 'pending' ORDER BY requested_at DESC"
     );
     res.json({ success: true, requests: result.rows });
   } catch (error) {
@@ -590,7 +589,7 @@ app.get('/api/admin/registration-requests', requireAdmin, async (req, res) => {
   }
 });
 
-// Approve a registration request
+// Approve a registration request - FIXED
 app.post('/api/admin/approve-registration/:id', requireAdmin, async (req, res) => {
   try {
     const request = await pool.query('SELECT * FROM registration_requests WHERE id = $1', [req.params.id]);
@@ -600,6 +599,20 @@ app.post('/api/admin/approve-registration/:id', requireAdmin, async (req, res) =
     
     const r = request.rows[0];
     
+    // Check if username already exists
+    const existingUser = await pool.query('SELECT id FROM class_users WHERE username = $1', [r.username]);
+    if (existingUser.rows.length > 0) {
+      await pool.query('UPDATE registration_requests SET status = $1 WHERE id = $2', ['rejected', req.params.id]);
+      return res.status(400).json({ success: false, message: 'Username already exists. Request automatically rejected.' });
+    }
+    
+    // Check if email already exists
+    const existingEmail = await pool.query('SELECT id FROM class_users WHERE email = $1', [r.email]);
+    if (existingEmail.rows.length > 0) {
+      await pool.query('UPDATE registration_requests SET status = $1 WHERE id = $2', ['rejected', req.params.id]);
+      return res.status(400).json({ success: false, message: 'Email already exists. Request automatically rejected.' });
+    }
+    
     // Create the user in class_users
     const result = await pool.query(
       'INSERT INTO class_users (username, password, full_name, email, is_admin, approved) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
@@ -608,10 +621,10 @@ app.post('/api/admin/approve-registration/:id', requireAdmin, async (req, res) =
     
     const newUserId = result.rows[0].id;
     
-    // Add to students table
+    // Add to students table - FIXED: using string literal for array
     await pool.query(
-      'INSERT INTO students (id, full_name, role, email, bio, skills, status) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-      [newUserId, r.full_name, 'Student', r.email, 'L3SOD Student', ARRAY['HTML','CSS','JavaScript'], 'offline']
+      "INSERT INTO students (id, full_name, role, email, bio, skills, status) VALUES ($1, $2, $3, $4, $5, '{HTML,CSS,JavaScript}', $6) ON CONFLICT (id) DO NOTHING",
+      [newUserId, r.full_name, 'Student', r.email, 'L3SOD Student', 'offline']
     );
     
     // Update request status
@@ -641,7 +654,6 @@ app.post('/api/admin/reject-registration/:id', requireAdmin, async (req, res) =>
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 
 // ==================== SOCKET.IO ====================
 
