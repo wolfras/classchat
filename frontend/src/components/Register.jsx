@@ -30,19 +30,46 @@ const Register = ({ isDarkTheme }) => {
     setError('');
     setSuccess('');
 
+    // Trim all inputs
+    const trimmedData = {
+      fullName: formData.fullName.trim(),
+      username: formData.username.trim(),
+      email: formData.email.trim().toLowerCase(),
+      password: formData.password,
+      confirmPassword: formData.confirmPassword
+    };
+
     // Validation
-    if (!formData.fullName || !formData.username || !formData.email || !formData.password) {
+    if (!trimmedData.fullName || !trimmedData.username || !trimmedData.email || !trimmedData.password) {
       setError('All fields are required');
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (trimmedData.password !== trimmedData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (trimmedData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      return;
+    }
+
+    // Username validation
+    if (trimmedData.username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9._]+$/.test(trimmedData.username)) {
+      setError('Username can only contain letters, numbers, dots, and underscores');
       return;
     }
 
@@ -53,23 +80,24 @@ const Register = ({ isDarkTheme }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: formData.fullName,
-          username: formData.username.toLowerCase(),
-          email: formData.email.toLowerCase(),
-          password: formData.password
+          fullName: trimmedData.fullName,
+          username: trimmedData.username,
+          email: trimmedData.email,
+          password: trimmedData.password
         })
       });
 
       const data = await res.json();
 
       if (data.success) {
-        setSuccess('Registration submitted! Please wait for admin approval. You will be notified when approved.');
-        setTimeout(() => navigate('/login'), 3000);
+        setSuccess('Registration submitted! Please wait for admin approval.');
+        // Don't auto-redirect - let user read the message
+        setTimeout(() => navigate('/login'), 5000);
       } else {
         setError(data.message || 'Registration failed');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError('Connection error. Please check your internet and try again.');
     } finally {
       setLoading(false);
     }
@@ -78,51 +106,137 @@ const Register = ({ isDarkTheme }) => {
   return (
     <div className={`login-page ${isDarkTheme ? 'dark' : 'light'}`}>
       <div className="login-page-container">
-        <Link to="/login" className="back-home-btn">
-          <Icon icon={arrowLeftIcon} width="20" height="20" />
+        <Link to="/login" className="back-home-btn" aria-label="Back to Login">
+          <Icon icon={arrowLeftIcon} width="20" height="20" aria-hidden="true" />
           Back to Login
         </Link>
 
         <div className="login-page-content login-single-column">
           <div className="login-form-section login-form-centered">
             <div className="login-form-header">
-              <div className="login-icon-wrapper">
+              <div className="login-icon-wrapper" aria-hidden="true">
                 <Icon icon={accountIcon} width="32" height="32" />
               </div>
               <h1>Create Account</h1>
               <p>Register to join the class chat. Admin approval required.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="login-form">
+            <form onSubmit={handleSubmit} className="login-form" noValidate>
               <div className="form-group">
-                <label><Icon icon={accountIcon} width="18" height="18" />Full Name</label>
-                <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Enter your full name" required />
+                <label htmlFor="reg-fullname">
+                  <Icon icon={accountIcon} width="18" height="18" aria-hidden="true" />
+                  Full Name
+                </label>
+                <input
+                  id="reg-fullname"
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  placeholder="Enter your full name"
+                  required
+                  aria-label="Full Name"
+                  disabled={loading}
+                  autoComplete="name"
+                  spellCheck="false"
+                />
               </div>
 
               <div className="form-group">
-                <label><Icon icon={accountIcon} width="18" height="18" />Username</label>
-                <input type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Choose a username" required />
+                <label htmlFor="reg-username">
+                  <Icon icon={accountIcon} width="18" height="18" aria-hidden="true" />
+                  Username
+                </label>
+                <input
+                  id="reg-username"
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Choose a username"
+                  required
+                  aria-label="Username"
+                  disabled={loading}
+                  autoComplete="username"
+                  spellCheck="false"
+                />
               </div>
 
               <div className="form-group">
-                <label><Icon icon={emailIcon} width="18" height="18" />Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" required />
+                <label htmlFor="reg-email">
+                  <Icon icon={emailIcon} width="18" height="18" aria-hidden="true" />
+                  Email
+                </label>
+                <input
+                  id="reg-email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  required
+                  aria-label="Email"
+                  disabled={loading}
+                  autoComplete="email"
+                />
               </div>
 
               <div className="form-group">
-                <label><Icon icon={lockIcon} width="18" height="18" />Password</label>
-                <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Create a password (min 6 characters)" required />
+                <label htmlFor="reg-password">
+                  <Icon icon={lockIcon} width="18" height="18" aria-hidden="true" />
+                  Password
+                </label>
+                <input
+                  id="reg-password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Create a password (min 6 characters)"
+                  required
+                  aria-label="Password"
+                  disabled={loading}
+                  autoComplete="new-password"
+                />
               </div>
 
               <div className="form-group">
-                <label><Icon icon={lockIcon} width="18" height="18" />Confirm Password</label>
-                <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm your password" required />
+                <label htmlFor="reg-confirm-password">
+                  <Icon icon={lockIcon} width="18" height="18" aria-hidden="true" />
+                  Confirm Password
+                </label>
+                <input
+                  id="reg-confirm-password"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm your password"
+                  required
+                  aria-label="Confirm Password"
+                  disabled={loading}
+                  autoComplete="new-password"
+                />
               </div>
 
-              {error && <div className="login-error">{error}</div>}
-              {success && <div className="login-success">{success}</div>}
+              {error && (
+                <div className="login-error" role="alert" aria-live="polite">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="login-success" role="status" aria-live="polite">
+                  {success}
+                </div>
+              )}
 
-              <button type="submit" className="login-submit-btn" disabled={loading}>
+              <button
+                type="submit"
+                className="login-submit-btn"
+                disabled={loading}
+                aria-busy={loading}
+                aria-label={loading ? 'Submitting registration' : 'Register'}
+              >
                 {loading ? 'Submitting...' : 'Register'}
               </button>
             </form>

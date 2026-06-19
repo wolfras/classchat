@@ -65,6 +65,7 @@ const Admin = ({ isDarkTheme }) => {
 
   useEffect(() => {
     fetchStudents();
+    fetchRegistrationRequests(); // FIX: Load requests count on mount
   }, []);
 
   useEffect(() => {
@@ -379,6 +380,16 @@ const Admin = ({ isDarkTheme }) => {
     return Array.from(roles);
   };
 
+  // FIX: Safe date formatter to prevent crash on null/invalid dates
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
   // Pagination
   const getPaginatedData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -665,7 +676,7 @@ const Admin = ({ isDarkTheme }) => {
                       <td className="admin-td-name">{request.username}</td>
                       <td className="admin-td-name">{request.full_name}</td>
                       <td className="admin-td-email">{request.email}</td>
-                      <td className="admin-td-email">{new Date(request.requested_at).toLocaleDateString()}</td>
+                      <td className="admin-td-email">{formatDate(request.requested_at)}</td>
                       <td className="admin-td-actions">
                         <button
                           className="admin-action-btn admin-approve-btn"

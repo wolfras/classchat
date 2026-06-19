@@ -642,29 +642,6 @@ app.post('/api/admin/reject-registration/:id', requireAdmin, async (req, res) =>
   }
 });
 
-// ==================== DATABASE MIGRATION (TEMPORARY) ====================
-app.get('/api/migrate-db', async (req, res) => {
-  try {
-    await pool.query(`ALTER TABLE class_users ADD COLUMN IF NOT EXISTS email VARCHAR(150)`);
-    await pool.query(`ALTER TABLE class_users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS registration_requests (
-      id SERIAL PRIMARY KEY, 
-      username VARCHAR(50) UNIQUE NOT NULL, 
-      password VARCHAR(255) NOT NULL, 
-      full_name VARCHAR(100) NOT NULL, 
-      email VARCHAR(150) NOT NULL, 
-      status VARCHAR(20) DEFAULT 'pending', 
-      requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-      approved_at TIMESTAMP, 
-      approved_by INTEGER REFERENCES class_users(id)
-    )`);
-    await pool.query(`UPDATE class_users SET approved = TRUE WHERE approved = FALSE`);
-    await pool.query(`UPDATE class_users SET email = 'admin@class.com' WHERE username = 'admin'`);
-    res.json({ success: true, message: 'Database migrated! Registration system ready.' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
 // ==================== SOCKET.IO ====================
 
