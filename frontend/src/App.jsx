@@ -8,7 +8,7 @@ import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
- // import ChatWrapper from './components/ChatWrapper';
+// import ChatWrapper from './components/ChatWrapper';
 import LoginPage from './components/LoginPage';
 import ChatPage from './components/ChatPage';
 import './App.css';
@@ -37,29 +37,21 @@ function App() {
         />
         
         <main className="main-content">
-            
           <Routes>
-            <Route path="/chat" element={
-  <ChatPage isDarkTheme={isDarkTheme} currentUser={currentUser} />
-} />
-  <Route path="/" element={<Home isDarkTheme={isDarkTheme} />} />
-  <Route path="/about" element={<About isDarkTheme={isDarkTheme} />} />
-  <Route path="/gallery" element={<Gallery isDarkTheme={isDarkTheme} currentUser={currentUser} />} />
-  <Route path="/login" element={
-    <LoginPage isDarkTheme={isDarkTheme} setCurrentUser={setCurrentUser} />
-  } />
-  <Route path="/admin" element={
-    <ProtectedRoute isAdmin={currentUser?.isAdmin}>
-      <Admin isDarkTheme={isDarkTheme} />
-    </ProtectedRoute>
-  } />
-<Route path="/register" element={<Register isDarkTheme={isDarkTheme} />} />
-</Routes>
-
-<Route path="/forgot-password" element={<ForgotPassword isDarkTheme={isDarkTheme} />} />
+            <Route path="/chat" element={<ChatPage isDarkTheme={isDarkTheme} currentUser={currentUser} />} />
+            <Route path="/" element={<Home isDarkTheme={isDarkTheme} />} />
+            <Route path="/about" element={<About isDarkTheme={isDarkTheme} />} />
+            <Route path="/gallery" element={<Gallery isDarkTheme={isDarkTheme} currentUser={currentUser} />} />
+            <Route path="/login" element={<LoginPage isDarkTheme={isDarkTheme} setCurrentUser={setCurrentUser} />} />
+            <Route path="/admin" element={
+              <ProtectedRoute isAdmin={currentUser?.isAdmin}>
+                <Admin isDarkTheme={isDarkTheme} />
+              </ProtectedRoute>
+            } />
+            <Route path="/register" element={<Register isDarkTheme={isDarkTheme} />} />
+            <Route path="/forgot-password" element={<ForgotPassword isDarkTheme={isDarkTheme} />} />
+          </Routes>
         </main>
-
-      
       </div>
     </Router>
   );
