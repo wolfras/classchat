@@ -959,6 +959,31 @@ app.post('/api/add-reset-columns', requireAdmin, async (req, res) => {
   }
 });
 
+// Get all users with active reset tokens
+app.get('/api/admin/active-reset-tokens', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, full_name, email, reset_token, reset_token_expiry FROM class_users WHERE reset_token IS NOT NULL AND reset_token_expiry > NOW() ORDER BY reset_token_expiry ASC"
+    );
+    res.json({ success: true, tokens: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Clear a user's reset token (cancel reset)
+app.post('/api/admin/clear-reset-token/:userId', requireAdmin, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE class_users SET reset_token = NULL, reset_token_expiry = NULL WHERE id = $1',
+      [req.params.userId]
+    );
+    res.json({ success: true, message: 'Reset token cleared' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

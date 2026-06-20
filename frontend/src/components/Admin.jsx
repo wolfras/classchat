@@ -22,6 +22,7 @@ import { API_URL } from '../config';
 import './Admin.css';
 
 const Admin = ({ isDarkTheme }) => {
+  // ==================== STATE ==================== //
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ const Admin = ({ isDarkTheme }) => {
   const [messageType, setMessageType] = useState('success');
   
   // Tabs
-  const [activeTab, setActiveTab] = useState('students'); // 'students', 'requests', or 'reset'
+  const [activeTab, setActiveTab] = useState('students');
   
   // Registration Requests
   const [registrationRequests, setRegistrationRequests] = useState([]);
@@ -41,6 +42,8 @@ const Admin = ({ isDarkTheme }) => {
   const [resetResult, setResetResult] = useState(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSearchQuery, setResetSearchQuery] = useState('');
+  const [activeTokens, setActiveTokens] = useState([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,8 +62,6 @@ const Admin = ({ isDarkTheme }) => {
   
   // Edit form
   const [editingStudent, setEditingStudent] = useState(null);
-  
-  // Form state
   const [formData, setFormData] = useState({
     full_name: '',
     role: '',
@@ -70,9 +71,11 @@ const Admin = ({ isDarkTheme }) => {
   });
   const [selectedFile, setSelectedFile] = useState(null);
 
+  // ==================== USEEFFECTS ==================== //
   useEffect(() => {
     fetchStudents();
-    fetchRegistrationRequests(); // FIX: Load requests count on mount
+    fetchRegistrationRequests();
+    fetchActiveTokens();
   }, []);
 
   useEffect(() => {
@@ -89,6 +92,7 @@ const Admin = ({ isDarkTheme }) => {
     setCurrentPage(1);
   }, [filteredStudents]);
 
+  // ==================== FETCH FUNCTIONS ==================== //
   const fetchStudents = async () => {
     try {
       const res = await fetch(`${API_URL}/api/students`);
@@ -121,6 +125,24 @@ const Admin = ({ isDarkTheme }) => {
     }
   };
 
+  const fetchActiveTokens = async () => {
+    setTokensLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/active-reset-tokens`, {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActiveTokens(data.tokens);
+      }
+    } catch (err) {
+      console.error('Error fetching tokens:', err);
+    } finally {
+      setTokensLoading(false);
+    }
+  };
+
+  // ==================== REGISTRATION REQUESTS HANDLERS ==================== //
   const handleApproveRequest = async (requestId) => {
     try {
       const res = await fetch(`${API_URL}/api/admin/approve-registration/${requestId}`, {
@@ -159,7 +181,7 @@ const Admin = ({ isDarkTheme }) => {
     }
   };
 
-  // Password Reset Functions
+  // ==================== PASSWORD RESET HANDLERS ==================== //
   const handleGenerateResetToken = async (userId) => {
     setResetLoading(true);
     setResetResult(null);
@@ -172,6 +194,7 @@ const Admin = ({ isDarkTheme }) => {
       if (data.success) {
         setResetResult(data);
         showMessage('Reset token generated successfully!', 'success');
+        fetchActiveTokens();
       } else {
         showMessage(data.message || 'Failed to generate token', 'error');
       }
@@ -179,6 +202,19 @@ const Admin = ({ isDarkTheme }) => {
       showMessage('Connection error', 'error');
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleClearToken = async (userId) => {
+    try {
+      await fetch(`${API_URL}/api/admin/clear-reset-token/${userId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      showMessage('Reset token cleared', 'success');
+      fetchActiveTokens();
+    } catch (err) {
+      showMessage('Error clearing token', 'error');
     }
   };
 
@@ -190,55 +226,7 @@ const Admin = ({ isDarkTheme }) => {
     });
   };
 
-  const filteredStudentsForReset = students.filter(s => {
-    if (!resetSearchQuery) return true;
-    const q = resetSearchQuery.toLowerCase();
-    return s.full_name.toLowerCase().includes(q) ||
-           (s.username && s.username.toLowerCase().includes(q)) ||
-           (s.email && s.email.toLowerCase().includes(q));
-  });
-
-  const applyFiltersAndSort = () => {
-    let filtered = [...students];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.full_name.toLowerCase().includes(query) ||
-        s.email?.toLowerCase().includes(query) ||
-        s.username?.toLowerCase().includes(query)
-      );
-    }
-
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(s => s.role === roleFilter);
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(s => s.status === statusFilter);
-    }
-
-    filtered.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
-      if (sortBy === 'name') { aVal = a.full_name; bVal = b.full_name; }
-      if (aVal === undefined) aVal = '';
-      if (bVal === undefined) bVal = '';
-      const comparison = aVal.toString().localeCompare(bVal.toString());
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    setFilteredStudents(filtered);
-    setSelectedStudents(new Set());
-    setSelectAll(false);
-  };
-
-  const showMessage = (msg, type = 'success') => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => setMessage(''), 4000);
-  };
-
+  // ==================== STUDENT MANAGEMENT HANDLERS ==================== //
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -379,6 +367,57 @@ const Admin = ({ isDarkTheme }) => {
     fetchStudents();
   };
 
+  // ==================== UTILITY FUNCTIONS ==================== //
+  const showMessage = (msg, type = 'success') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 4000);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  const applyFiltersAndSort = () => {
+    let filtered = [...students];
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.full_name.toLowerCase().includes(query) ||
+        s.email?.toLowerCase().includes(query) ||
+        s.username?.toLowerCase().includes(query)
+      );
+    }
+
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(s => s.role === roleFilter);
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(s => s.status === statusFilter);
+    }
+
+    filtered.sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      if (sortBy === 'name') { aVal = a.full_name; bVal = b.full_name; }
+      if (aVal === undefined) aVal = '';
+      if (bVal === undefined) bVal = '';
+      const comparison = aVal.toString().localeCompare(bVal.toString());
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredStudents(filtered);
+    setSelectedStudents(new Set());
+    setSelectAll(false);
+  };
+
   const toggleSelectStudent = (id) => {
     const newSelected = new Set(selectedStudents);
     if (newSelected.has(id)) {
@@ -426,25 +465,24 @@ const Admin = ({ isDarkTheme }) => {
     return Array.from(roles);
   };
 
-  // FIX: Safe date formatter to prevent crash on null/invalid dates
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch (e) {
-      return 'Invalid date';
-    }
-  };
-
-  // Pagination
   const getPaginatedData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredStudents.slice(startIndex, startIndex + itemsPerPage);
   };
 
+  const filteredStudentsForReset = students.filter(s => {
+    if (!resetSearchQuery) return true;
+    const q = resetSearchQuery.toLowerCase();
+    return s.full_name.toLowerCase().includes(q) ||
+           (s.username && s.username.toLowerCase().includes(q)) ||
+           (s.email && s.email.toLowerCase().includes(q));
+  });
+
+  // ==================== COMPUTED VALUES ==================== //
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const paginatedStudents = getPaginatedData();
 
+  // ==================== RENDER ==================== //
   if (loading) {
     return (
       <div className="admin-loading">
@@ -498,7 +536,7 @@ const Admin = ({ isDarkTheme }) => {
         </div>
       )}
 
-      {/* Tabs - UPDATED with Password Reset */}
+      {/* Tabs */}
       <div className="admin-tabs">
         <button
           className={`admin-tab ${activeTab === 'students' ? 'active' : ''}`}
@@ -791,6 +829,74 @@ const Admin = ({ isDarkTheme }) => {
               </div>
             </div>
           )}
+
+          {/* Active Reset Tokens */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <Icon icon={accountClockIcon} width="20" height="20" />
+              Active Reset Tokens ({activeTokens.length})
+            </h3>
+            
+            {tokensLoading ? (
+              <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+            ) : activeTokens.length === 0 ? (
+              <div className="admin-empty-state" style={{ padding: '1.5rem' }}>
+                <Icon icon={accountCheckIcon} width="36" height="36" />
+                <p>No active reset tokens</p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Username</th>
+                      <th>Token</th>
+                      <th>Expires</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeTokens.map(token => (
+                      <tr key={token.id} className="admin-tr">
+                        <td className="admin-td-name">{token.full_name}</td>
+                        <td className="admin-td-name">@{token.username}</td>
+                        <td>
+                          <code style={{ 
+                            fontFamily: 'monospace', 
+                            background: 'rgba(124,58,237,0.1)', 
+                            padding: '0.2rem 0.5rem', 
+                            borderRadius: '4px',
+                            color: '#7c3aed',
+                            fontWeight: 600
+                          }}>
+                            {token.reset_token}
+                          </code>
+                        </td>
+                        <td className="admin-td-email">{formatDate(token.reset_token_expiry)}</td>
+                        <td className="admin-td-actions">
+                          <button
+                            className="admin-btn admin-btn-secondary"
+                            onClick={() => handleCopyToken(token.reset_token)}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                          >
+                            <Icon icon={clipboardIcon} width="14" height="14" />
+                          </button>
+                          <button
+                            className="admin-btn admin-btn-danger"
+                            onClick={() => handleClearToken(token.id)}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                          >
+                            <Icon icon={closeCircleIcon} width="14" height="14" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
           {/* Search Students */}
           <div className="admin-search-bar" style={{ marginTop: '1.5rem' }}>

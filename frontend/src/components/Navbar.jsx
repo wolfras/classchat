@@ -42,7 +42,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
   // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (mobileMenuOpen && isMobile) {
-      document.body.style.overflow = '';
+      document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
     } else {
