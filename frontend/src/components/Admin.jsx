@@ -44,6 +44,7 @@ const Admin = ({ isDarkTheme }) => {
   const [resetSearchQuery, setResetSearchQuery] = useState('');
   const [activeTokens, setActiveTokens] = useState([]);
   const [tokensLoading, setTokensLoading] = useState(false);
+  const [revealedTokens, setRevealedTokens] = useState(new Set());
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -862,15 +863,29 @@ const Admin = ({ isDarkTheme }) => {
                         <td className="admin-td-name">{token.full_name}</td>
                         <td className="admin-td-name">@{token.username}</td>
                         <td>
-                          <code style={{ 
-                            fontFamily: 'monospace', 
-                            background: 'rgba(124,58,237,0.1)', 
-                            padding: '0.2rem 0.5rem', 
-                            borderRadius: '4px',
-                            color: '#7c3aed',
-                            fontWeight: 600
-                          }}>
-                            {token.reset_token}
+                          <code
+                            onClick={() => {
+                              setRevealedTokens(prev => {
+                                const next = new Set(prev);
+                                if (next.has(token.id)) {
+                                  next.delete(token.id);
+                                } else {
+                                  next.add(token.id);
+                                }
+                                return next;
+                              });
+                            }}
+                            style={{ 
+                              fontFamily: 'monospace', 
+                              background: 'rgba(124,58,237,0.1)', 
+                              padding: '0.2rem 0.5rem', 
+                              borderRadius: '4px',
+                              color: '#7c3aed',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {revealedTokens.has(token.id) ? token.reset_token : '••••••••'}
                           </code>
                         </td>
                         <td className="admin-td-email">{formatDate(token.reset_token_expiry)}</td>

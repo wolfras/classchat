@@ -744,3 +744,21 @@ Example CSS class to prevent scrolling:
   width: 100%;
 }
 */
+
+.profile-nav-btn-desktop {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-tertiary);
+  border-radius: 25px;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: var(--transition-smooth);
+}
+.profile-nav-btn-desktop:hover { border-color: #7c3aed; color: #7c3aed; }
+.profile-nav-btn-desktop span { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 768px) { .profile-nav-btn-desktop { display: none; } }

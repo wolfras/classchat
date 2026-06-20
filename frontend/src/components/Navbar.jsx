@@ -102,6 +102,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
     { path: '/about', icon: informationIcon, label: 'About' },
     { path: '/gallery', icon: imageIcon, label: 'Gallery' },
     { path: '/chat', icon: chatIcon, label: 'Chat' },
+    { path: '/profile', icon: accountIcon, label: 'Profile' },
   ];
 
   return (
@@ -117,6 +118,14 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
           <span className="logo-text">L3SOD</span>
           <span className="logo-subtext">Portfolio</span>
         </Link>
+
+        {/* FIX: Only show profile link when user is logged in */}
+        {currentUser && (
+          <Link to="/profile" className="user-menu-link">
+            <Icon icon={accountIcon} width="20" height="20" />
+            <span>{currentUser.username || currentUser.name}</span>
+          </Link>
+        )}
 
         {/* Desktop Navigation */}
         <div className="nav-links" role="menubar">

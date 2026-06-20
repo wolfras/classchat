@@ -784,12 +784,24 @@ app.get('/api/admin/active-reset-tokens', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/clear-reset-token/:userId', requireAdmin, async (req, res) => {
   try {
-    await pool.query(
+    const result = await pool.query(
       'UPDATE class_users SET reset_token = NULL, reset_token_expiry = NULL WHERE id = $1',
       [req.params.userId]
     );
-    console.log('🔓 Reset token cleared for user:', req.params.userId);
-    res.json({ success: true, message: 'Reset token cleared' });
+
+    if (result.rowCount > 0) {
+      const adminUser = req.session.fullName || req.session.username || req.session.userId || 'unknown-admin';
+      const timestamp = new Date().toISOString();
+      console.log(
+        `🔐 Audit: admin=${adminUser} cleared reset token for user=${req.params.userId} at=${timestamp}`
+      );
+      res.json({ success: true, message: 'Reset token cleared' });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'No user found or reset token was already cleared'
+      });
+    }
   } catch (error) {
     console.error('❌ Error clearing token:', error);
     res.status(500).json({ success: false, message: 'Server error' });

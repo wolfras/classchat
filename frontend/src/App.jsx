@@ -5,6 +5,7 @@ import Home from './components/Home';
 import About from './components/About';
 import Gallery from './components/Gallery';
 import Admin from './components/Admin';
+import Profile from './components/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
@@ -39,6 +40,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/chat" element={<ChatPage isDarkTheme={isDarkTheme} currentUser={currentUser} />} />
+           <Route path="/profile" element={<Profile isDarkTheme={isDarkTheme} currentUser={currentUser} setCurrentUser={setCurrentUser} />} />
             <Route path="/" element={<Home isDarkTheme={isDarkTheme} />} />
             <Route path="/about" element={<About isDarkTheme={isDarkTheme} />} />
             <Route path="/gallery" element={<Gallery isDarkTheme={isDarkTheme} currentUser={currentUser} />} />
