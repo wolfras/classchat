@@ -811,9 +811,9 @@ io.on('connection', (socket) => {
 });
 
 // TEMPORARY - Add reset token columns
-app.get('/api/add-reset-columns', async (req, res) => {
+app.post('/api/add-reset-columns', requireAdmin, async (req, res) => {
   try {
-    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(20)');
+    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)');
     await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP');
     res.json({ success: true, message: 'Reset token columns added!' });
   } catch (error) {
@@ -949,9 +949,9 @@ app.post('/api/admin/generate-reset-token/:userId', requireAdmin, async (req, re
 });
 
 // TEMPORARY - Add reset password columns
-app.get('/api/add-reset-columns', async (req, res) => {
+app.post('/api/add-reset-columns', requireAdmin, async (req, res) => {
   try {
-    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(20)');
+    await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)');
     await pool.query('ALTER TABLE class_users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP');
     res.json({ success: true, message: 'Reset token columns added!' });
   } catch (error) {

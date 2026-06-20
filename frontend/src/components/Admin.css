@@ -1026,3 +1026,104 @@ textarea.admin-input {
   margin-bottom: 1rem;
   color: var(--text-primary);
 }
+
+
+/* =====================================================
+   PASSWORD RESET TAB STYLES
+   ===================================================== */
+
+/* Reset Token Display Box */
+.reset-token-display {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(16, 185, 129, 0.08));
+  border: 2px solid #7c3aed;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  animation: slideInDown 0.4s ease-out;
+}
+
+.reset-token-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 1rem;
+}
+
+.reset-token-header svg {
+  flex-shrink: 0;
+}
+
+.reset-token-info p {
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.reset-token-info strong {
+  color: var(--text-primary);
+}
+
+.reset-token-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 2px dashed #7c3aed;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.reset-token-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.reset-token-value {
+  font-family: 'Courier New', monospace;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #7c3aed;
+  letter-spacing: 2px;
+  background: rgba(124, 58, 237, 0.1);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+}
+
+.reset-token-instructions {
+  font-size: 0.85rem !important;
+  color: var(--text-tertiary) !important;
+  margin-top: 0.75rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Responsive for reset token */
+@media (max-width: 768px) {
+  .reset-token-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .reset-token-value {
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+  }
+
+  .reset-token-display {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .reset-token-value {
+    font-size: 0.95rem;
+    word-break: break-all;
+  }
+}

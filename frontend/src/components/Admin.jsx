@@ -3,6 +3,8 @@ import { Icon } from '@iconify/react';
 import shieldIcon from '@iconify/icons-mdi/shield';
 import accountPlusIcon from '@iconify/icons-mdi/account-plus';
 import deleteIcon from '@iconify/icons-mdi/delete';
+import keyIcon from '@iconify/icons-mdi/key';
+import clipboardIcon from '@iconify/icons-mdi/clipboard-text';
 import uploadIcon from '@iconify/icons-mdi/upload';
 import downloadIcon from '@iconify/icons-mdi/download';
 import pencilIcon from '@iconify/icons-mdi/pencil';
@@ -29,11 +31,16 @@ const Admin = ({ isDarkTheme }) => {
   const [messageType, setMessageType] = useState('success');
   
   // Tabs
-  const [activeTab, setActiveTab] = useState('students'); // 'students' or 'requests'
+  const [activeTab, setActiveTab] = useState('students'); // 'students', 'requests', or 'reset'
   
   // Registration Requests
   const [registrationRequests, setRegistrationRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  
+  // Password Reset
+  const [resetResult, setResetResult] = useState(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSearchQuery, setResetSearchQuery] = useState('');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,6 +158,45 @@ const Admin = ({ isDarkTheme }) => {
       showMessage('Connection error', 'error');
     }
   };
+
+  // Password Reset Functions
+  const handleGenerateResetToken = async (userId) => {
+    setResetLoading(true);
+    setResetResult(null);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/generate-reset-token/${userId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetResult(data);
+        showMessage('Reset token generated successfully!', 'success');
+      } else {
+        showMessage(data.message || 'Failed to generate token', 'error');
+      }
+    } catch (err) {
+      showMessage('Connection error', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleCopyToken = (token) => {
+    navigator.clipboard.writeText(token).then(() => {
+      showMessage('Token copied to clipboard!', 'success');
+    }).catch(() => {
+      showMessage('Failed to copy token', 'error');
+    });
+  };
+
+  const filteredStudentsForReset = students.filter(s => {
+    if (!resetSearchQuery) return true;
+    const q = resetSearchQuery.toLowerCase();
+    return s.full_name.toLowerCase().includes(q) ||
+           (s.username && s.username.toLowerCase().includes(q)) ||
+           (s.email && s.email.toLowerCase().includes(q));
+  });
 
   const applyFiltersAndSort = () => {
     let filtered = [...students];
@@ -452,7 +498,7 @@ const Admin = ({ isDarkTheme }) => {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs - UPDATED with Password Reset */}
       <div className="admin-tabs">
         <button
           className={`admin-tab ${activeTab === 'students' ? 'active' : ''}`}
@@ -470,6 +516,13 @@ const Admin = ({ isDarkTheme }) => {
           {registrationRequests.length > 0 && (
             <span className="admin-tab-badge">{registrationRequests.length}</span>
           )}
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'reset' ? 'active' : ''}`}
+          onClick={() => setActiveTab('reset')}
+        >
+          <Icon icon={keyIcon} width="20" height="20" />
+          Password Reset
         </button>
       </div>
 
@@ -699,6 +752,112 @@ const Admin = ({ isDarkTheme }) => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ==================== PASSWORD RESET TAB ==================== */}
+      {activeTab === 'reset' && (
+        <div className="admin-requests-section">
+          <h2>
+            <Icon icon={keyIcon} width="24" height="24" />
+            Password Reset Tokens
+          </h2>
+          <p className="admin-subtitle">Generate reset tokens for students who forgot their password</p>
+
+          {/* Generated Token Display */}
+          {resetResult && (
+            <div className="reset-token-display">
+              <div className="reset-token-header">
+                <Icon icon={checkCircleIcon} width="24" height="24" />
+                <span>Token Generated Successfully</span>
+              </div>
+              <div className="reset-token-info">
+                <p><strong>Student:</strong> {resetResult.fullName} (@{resetResult.username})</p>
+                <div className="reset-token-box">
+                  <span className="reset-token-label">Reset Token:</span>
+                  <code className="reset-token-value">{resetResult.resetToken}</code>
+                  <button 
+                    className="admin-btn admin-btn-secondary"
+                    onClick={() => handleCopyToken(resetResult.resetToken)}
+                    title="Copy token"
+                  >
+                    <Icon icon={clipboardIcon} width="16" height="16" />
+                    Copy
+                  </button>
+                </div>
+                <p className="reset-token-instructions">
+                  Give this token to the student. They can use it at the <strong>Forgot Password</strong> page to reset their password. This token expires in 1 hour.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Search Students */}
+          <div className="admin-search-bar" style={{ marginTop: '1.5rem' }}>
+            <div className="admin-search-input-wrapper">
+              <Icon icon={searchIcon} width="20" height="20" className="admin-search-icon" />
+              <input
+                type="text"
+                placeholder="Search students by name, username, or email..."
+                value={resetSearchQuery}
+                onChange={(e) => setResetSearchQuery(e.target.value)}
+                className="admin-search-input"
+              />
+            </div>
+          </div>
+
+          {/* Students List for Reset */}
+          <div className="admin-table-container" style={{ marginTop: '1rem' }}>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Photo</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudentsForReset.slice(0, 20).map(student => (
+                    <tr key={student.id} className="admin-tr">
+                      <td className="admin-td-photo">
+                        {student.photo ? (
+                          <img src={student.photo} alt={student.full_name} />
+                        ) : (
+                          <div className="admin-avatar-placeholder">
+                            {student.full_name?.split(' ').map(n => n[0]).join('')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="admin-td-name">{student.full_name}</td>
+                      <td className="admin-td-name">{student.username || '-'}</td>
+                      <td className="admin-td-email">{student.email || '-'}</td>
+                      <td className="admin-td-actions">
+                        <button
+                          className="admin-btn admin-btn-primary"
+                          onClick={() => handleGenerateResetToken(student.id)}
+                          disabled={resetLoading}
+                          style={{ padding: '0.35rem 0.85rem', fontSize: '0.85rem' }}
+                        >
+                          <Icon icon={keyIcon} width="14" height="14" />
+                          Generate Token
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredStudentsForReset.length === 0 && (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                        No students found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>
