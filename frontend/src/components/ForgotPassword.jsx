@@ -26,34 +26,22 @@ const ForgotPassword = ({ isDarkTheme }) => {
     setLoading(true);
 
     try {
-      console.log('🔑 Requesting reset token for:', username);
-      
       const res = await fetch(`${API_URL}/api/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // ✅ FIXED: Include credentials for session
         body: JSON.stringify({ email: username.trim() })
       });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
       const data = await res.json();
       
-      console.log('Response:', data);
-      
       if (data.success) {
-        console.log('✅ Reset token generated:', data.resetToken);
         setResetInfo(data);
         setStep(2);
-        setSuccess('Reset token generated! Copy the token and enter it below with your new password.');
+        setSuccess('Reset token generated! Enter the token below with your new password.');
       } else {
         setError(data.message || 'Request failed');
       }
     } catch (err) {
-      console.error('❌ Error:', err);
-      setError('Connection error: ' + err.message);
+      setError('Connection error');
     } finally {
       setLoading(false);
     }
@@ -77,37 +65,25 @@ const ForgotPassword = ({ isDarkTheme }) => {
     setLoading(true);
 
     try {
-      console.log('🔐 Resetting password...');
-      
       const res = await fetch(`${API_URL}/api/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // ✅ FIXED: Include credentials for session
         body: JSON.stringify({
           username: resetInfo?.username || username.trim(),
           token: token.trim().toUpperCase(),
           newPassword: newPassword
         })
       });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
       const data = await res.json();
       
-      console.log('Response:', data);
-      
       if (data.success) {
-        console.log('✅ Password reset successful!');
-        setSuccess('✅ Password reset successfully! Redirecting to login...');
+        setSuccess('Password reset successfully! You can now login.');
         setTimeout(() => window.location.href = '/login', 2000);
       } else {
-        setError(data.message || 'Reset failed. Check your token and try again.');
+        setError(data.message || 'Reset failed');
       }
     } catch (err) {
-      console.error('❌ Error:', err);
-      setError('Connection error: ' + err.message);
+      setError('Connection error');
     } finally {
       setLoading(false);
     }
@@ -135,102 +111,31 @@ const ForgotPassword = ({ isDarkTheme }) => {
               <form onSubmit={handleRequestReset} className="login-form">
                 <div className="form-group">
                   <label><Icon icon={accountIcon} width="18" height="18" />Username or Email</label>
-                  <input 
-                    type="text" 
-                    value={username} 
-                    onChange={(e) => setUsername(e.target.value)} 
-                    placeholder="Enter your username or email" 
-                    required 
-                    disabled={loading}
-                  />
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username or email" required />
                 </div>
-                
-                {error && <div className="login-error">❌ {error}</div>}
-                {success && <div className="login-success">✅ {success}</div>}
-                
+                {error && <div className="login-error">{error}</div>}
                 <button type="submit" className="login-submit-btn" disabled={loading}>
                   {loading ? 'Sending...' : 'Get Reset Token'}
                 </button>
-
-                {resetInfo && resetInfo.resetToken && (
-                  <div className="reset-token-display">
-                    <h4>Your Reset Token:</h4>
-                    <div className="token-box">
-                      <code>{resetInfo.resetToken}</code>
-                      <button 
-                        type="button"
-                        onClick={() => navigator.clipboard.writeText(resetInfo.resetToken)}
-                        className="copy-token-btn"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-                )}
               </form>
             ) : (
               <form onSubmit={handleResetPassword} className="login-form">
                 <div className="form-group">
                   <label><Icon icon={keyIcon} width="18" height="18" />Reset Token</label>
-                  <input 
-                    type="text" 
-                    value={token} 
-                    onChange={(e) => setToken(e.target.value)} 
-                    placeholder="Enter the reset token (paste from email or above)" 
-                    required 
-                    disabled={loading}
-                  />
-                  {resetInfo?.resetToken && (
-                    <small style={{ marginTop: '0.5rem', display: 'block', color: '#10b981' }}>
-                      Token from step 1: {resetInfo.resetToken}
-                    </small>
-                  )}
+                  <input type="text" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter the reset token" required />
                 </div>
-                
                 <div className="form-group">
                   <label><Icon icon={lockIcon} width="18" height="18" />New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPassword} 
-                    onChange={(e) => setNewPassword(e.target.value)} 
-                    placeholder="Enter new password (min 6 chars)" 
-                    required 
-                    disabled={loading}
-                  />
+                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password (min 6 chars)" required />
                 </div>
-                
                 <div className="form-group">
                   <label><Icon icon={lockIcon} width="18" height="18" />Confirm Password</label>
-                  <input 
-                    type="password" 
-                    value={confirmPassword} 
-                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                    placeholder="Confirm new password" 
-                    required 
-                    disabled={loading}
-                  />
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" required />
                 </div>
-                
-                {error && <div className="login-error">❌ {error}</div>}
-                {success && <div className="login-success">✅ {success}</div>}
-                
+                {error && <div className="login-error">{error}</div>}
+                {success && <div className="login-success">{success}</div>}
                 <button type="submit" className="login-submit-btn" disabled={loading}>
                   {loading ? 'Resetting...' : 'Reset Password'}
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setStep(1);
-                    setToken('');
-                    setNewPassword('');
-                    setConfirmPassword('');
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="back-step-btn"
-                >
-                  ← Back to Step 1
                 </button>
               </form>
             )}
