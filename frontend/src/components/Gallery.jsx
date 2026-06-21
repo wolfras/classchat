@@ -42,10 +42,13 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
 
   // Filter students
   const filteredStudents = students.filter(student => {
-    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.role && student.role.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesRole = filterRole === 'all' || 
-                       (student.role && student.role.toLowerCase().includes(filterRole.toLowerCase()));
+    const normalizedSearch = searchTerm.toLowerCase();
+    const matchesSearch =
+      (student.full_name ?? '').toLowerCase().includes(normalizedSearch) ||
+      (student.role ?? '').toLowerCase().includes(normalizedSearch);
+    const matchesRole =
+      filterRole === 'all' ||
+      (student.role ?? '').toLowerCase().includes(filterRole.toLowerCase());
     return matchesSearch && matchesRole;
   });
 
