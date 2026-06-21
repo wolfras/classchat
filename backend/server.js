@@ -1004,6 +1004,52 @@ app.get('/api/sync-all-data', async (req, res) => {
   }
 });
 
+// Sync students table
+app.get('/api/sync-all-data', async (req, res) => {
+  try {
+    const users = await pool.query('SELECT id, full_name, username, is_admin, email FROM class_users ORDER BY id');
+    let count = 0;
+    
+    for (const user of users.rows) {
+      const role = user.is_admin ? (user.id === 1 ? 'Admin' : 'Teacher') : 'Student';
+      await pool.query(
+        `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
+         VALUES ($1, $2, $3, $4, 'L3SOD Member', '{HTML,CSS,JavaScript}', 'offline')
+         ON CONFLICT (id) DO UPDATE SET full_name = $2, role = $3, email = $4`,
+        [user.id, user.full_name, role, user.email || (user.username + '@class.com')]
+      );
+      count++;
+    }
+    
+    await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
+    
+    res.json({ success: true, message: `Synced ${count} students!`, total: count });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+// Get all students
+app.get('/api/students', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, full_name, role, email, bio, skills, photo, photo_mime_type, status FROM students ORDER BY id'
+    );
+    
+    const students = result.rows.map(student => ({
+      ...student,
+      photo: student.photo ? `data:${student.photo_mime_type};base64,${student.photo.toString('base64')}` : null
+    }));
+    
+    res.json({ success: true, students });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
