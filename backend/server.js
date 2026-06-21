@@ -864,10 +864,17 @@ app.get('/api/sync-all-data', async (req, res) => {
       }
     }
     
-    // Update sequence for students table
+    // Update sequence for students table only when rows exist
     try {
-      await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
-      console.log('✅ Updated students_id_seq');
+      const studentCount = await pool.query('SELECT COUNT(*)::int AS count FROM students');
+      if (studentCount.rows[0].count > 0) {
+        await pool.query(
+          "SELECT setval('students_id_seq', (SELECT MAX(id) FROM students), true)"
+        );
+        console.log('✅ Updated students_id_seq');
+      } else {
+        console.log('ℹ️ Skipped students_id_seq update because students table is empty');
+      }
     } catch (err) {
       console.warn('⚠️ Could not update sequence:', err.message);
     }
