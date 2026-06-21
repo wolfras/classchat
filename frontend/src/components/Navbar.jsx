@@ -13,6 +13,7 @@ import logoutIcon from '@iconify/icons-mdi/logout';
 import loginIcon from '@iconify/icons-mdi/login';
 import menuIcon from '@iconify/icons-mdi/menu';
 import closeIcon from '@iconify/icons-mdi/close';
+import keyIcon from '@iconify/icons-mdi/key';
 import { API_URL } from '../config';
 import './Navbar.css';
 
@@ -21,6 +22,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [logoutError, setLogoutError] = useState(null);
   const mobileMenuRef = useRef(null);
 
   // Handle responsive resize
@@ -75,17 +77,39 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [mobileMenuOpen]);
 
+  // ==================== LOGOUT WITH ERROR HANDLING ====================
   const handleLogout = async () => {
     try {
-      await fetch(`${API_URL}/api/logout`, {
+      setLogoutError(null);
+      console.log('🔌 Logging out...');
+      
+      const res = await fetch(`${API_URL}/api/logout`, {
         method: 'POST',
         credentials: 'include',
       });
-      setCurrentUser(null);
-      setMobileMenuOpen(false);
-      navigate('/');
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      
+      if (data.success) {
+        console.log('✅ Logout successful');
+        setCurrentUser(null);
+        setMobileMenuOpen(false);
+        navigate('/', { replace: true });
+      } else {
+        throw new Error(data.message || 'Logout failed');
+      }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
+      setLogoutError(error.message);
+      // Still clear user on error (might be session already expired)
+      setTimeout(() => {
+        setCurrentUser(null);
+        setMobileMenuOpen(false);
+      }, 1500);
     }
   };
 
@@ -119,13 +143,6 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
           <span className="logo-subtext">Portfolio</span>
         </Link>
 
-        {/* FIX: Only show profile link when user is logged in */}
-        {currentUser && (
-          <Link to="/profile" className="user-menu-link">
-            <Icon icon={accountIcon} width="20" height="20" />
-            <span>{currentUser.username || currentUser.name}</span>
-          </Link>
-        )}
 
         {/* Desktop Navigation */}
         <div className="nav-links" role="menubar">
@@ -331,6 +348,7 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
             {/* User Info / Login */}
             {currentUser ? (
               <>
+                {/* ✅ IMPROVED: Better user info display */}
                 <div
                   className="mobile-user-info"
                   role="group"
@@ -352,6 +370,14 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
                   </div>
                 </div>
 
+                {/* ✅ IMPROVED: Show logout error if any */}
+                {logoutError && (
+                  <div className="mobile-logout-error" role="alert">
+                    <small>⚠️ {logoutError}</small>
+                  </div>
+                )}
+
+                {/* Logout Button */}
                 <button
                   onClick={handleLogout}
                   className="mobile-action-btn logout-action"
@@ -367,20 +393,39 @@ const Navbar = ({ isDarkTheme, toggleTheme, currentUser, setCurrentUser }) => {
                 </button>
               </>
             ) : (
-              <Link
-                to="/login"
-                className="mobile-action-btn login-action"
-                onClick={closeMobileMenu}
-                aria-label="Login to your account"
-              >
-                <Icon
-                  icon={loginIcon}
-                  width="24"
-                  height="24"
-                  aria-hidden="true"
-                />
-                <span>Login to Your Account</span>
-              </Link>
+              <>
+                {/* ✅ NEW: Forgot Password link for mobile */}
+                <Link
+                  to="/forgot-password"
+                  className="mobile-action-btn forgot-action"
+                  onClick={closeMobileMenu}
+                  aria-label="Reset your password"
+                >
+                  <Icon
+                    icon={keyIcon}
+                    width="24"
+                    height="24"
+                    aria-hidden="true"
+                  />
+                  <span>Forgot Password</span>
+                </Link>
+
+                {/* Login Button */}
+                <Link
+                  to="/login"
+                  className="mobile-action-btn login-action"
+                  onClick={closeMobileMenu}
+                  aria-label="Login to your account"
+                >
+                  <Icon
+                    icon={loginIcon}
+                    width="24"
+                    height="24"
+                    aria-hidden="true"
+                  />
+                  <span>Login to Your Account</span>
+                </Link>
+              </>
             )}
           </div>
         </div>
