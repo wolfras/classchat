@@ -341,19 +341,32 @@ app.get('/api/registration-status/:email', async (req, res) => {
 
 app.get('/api/students', async (req, res) => {
   try {
+    console.log('📋 Fetching students from database...');
+    
     const result = await pool.query(
       'SELECT id, full_name, role, email, bio, skills, photo, photo_mime_type, status, username FROM students ORDER BY id'
     );
+    
+    console.log(`✅ Found ${result.rows.length} students in database`);
+    
+    // Check if students table is empty
+    if (result.rows.length === 0) {
+      console.warn('⚠️ WARNING: Students table is empty! Run /api/sync-all-data first');
+    }
     
     const students = result.rows.map(student => ({
       ...student,
       photo: student.photo ? `data:${student.photo_mime_type};base64,${student.photo.toString('base64')}` : null
     }));
     
-    res.json({ success: true, students });
+    res.json({ success: true, students, count: result.rows.length });
   } catch (error) {
-    console.error('❌ Error fetching students:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error fetching students:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error: ' + error.message,
+      hint: 'If students table is empty, call GET /api/sync-all-data first'
+    });
   }
 });
 
@@ -784,27 +797,102 @@ app.get('/api/admin/active-reset-tokens', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/clear-reset-token/:userId', requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query(
+    await pool.query(
       'UPDATE class_users SET reset_token = NULL, reset_token_expiry = NULL WHERE id = $1',
       [req.params.userId]
     );
-
-    if (result.rowCount > 0) {
-      const adminUser = req.session.fullName || req.session.username || req.session.userId || 'unknown-admin';
-      const timestamp = new Date().toISOString();
-      console.log(
-        `🔐 Audit: admin=${adminUser} cleared reset token for user=${req.params.userId} at=${timestamp}`
-      );
-      res.json({ success: true, message: 'Reset token cleared' });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: 'No user found or reset token was already cleared'
-      });
-    }
+    console.log('🔓 Reset token cleared for user:', req.params.userId);
+    res.json({ success: true, message: 'Reset token cleared' });
   } catch (error) {
     console.error('❌ Error clearing token:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ==================== SYNC DATA ENDPOINT ====================
+
+app.get('/api/sync-all-data', async (req, res) => {
+  try {
+    console.log('🔄 Starting sync: class_users → students...');
+    
+    // Get all users from class_users
+    const users = await pool.query(
+      'SELECT id, full_name, username, is_admin, email FROM class_users ORDER BY id'
+    );
+    
+    console.log(`📊 Found ${users.rows.length} users in class_users table`);
+    
+    if (users.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No users found in class_users table'
+      });
+    }
+    
+    let syncedCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    // Sync each user to students table
+    for (const user of users.rows) {
+      try {
+        const role = user.is_admin ? (user.id === 1 ? 'Admin' : 'Teacher') : 'Student';
+        const email = user.email || `${user.username}@class.local`;
+        
+        const result = await pool.query(
+          `INSERT INTO students (id, full_name, role, email, bio, skills, status, username) 
+           VALUES ($1, $2, $3, $4, 'L3SOD Member', ARRAY['HTML','CSS','JavaScript'], 'offline', $5)
+           ON CONFLICT (id) DO UPDATE SET 
+             full_name = $2, 
+             role = $3, 
+             email = $4,
+             username = $5
+           RETURNING id`,
+          [user.id, user.full_name, role, email, user.username]
+        );
+        
+        syncedCount++;
+        console.log(`✅ Synced user ${user.id}: ${user.full_name}`);
+      } catch (err) {
+        errorCount++;
+        errors.push({
+          userId: user.id,
+          username: user.username,
+          error: err.message
+        });
+        console.error(`❌ Error syncing user ${user.id}:`, err.message);
+      }
+    }
+    
+    // Update sequence for students table
+    try {
+      await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
+      console.log('✅ Updated students_id_seq');
+    } catch (err) {
+      console.warn('⚠️ Could not update sequence:', err.message);
+    }
+    
+    // Verify sync
+    const verify = await pool.query('SELECT COUNT(*) as count FROM students');
+    const totalStudents = verify.rows[0].count;
+    
+    console.log(`✅ Sync complete! Total students in database: ${totalStudents}`);
+    
+    res.json({
+      success: true,
+      message: `Synced ${syncedCount} users from class_users to students table`,
+      synced: syncedCount,
+      errors: errorCount,
+      total: totalStudents,
+      errorDetails: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('❌ Sync error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Sync failed: ' + error.message,
+      error: error.message
+    });
   }
 });
 
@@ -978,77 +1066,6 @@ app.use((req, res) => {
     message: 'Endpoint not found: ' + req.method + ' ' + req.path 
   });
 });
-
-// TEMPORARY - Sync students with class_users
-app.get('/api/sync-all-data', async (req, res) => {
-  try {
-    const users = await pool.query('SELECT id, full_name, username, is_admin, email FROM class_users ORDER BY id');
-    let count = 0;
-    
-    for (const user of users.rows) {
-      const role = user.is_admin ? (user.id === 1 ? 'Admin' : 'Teacher') : 'Student';
-      await pool.query(
-        `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
-         VALUES ($1, $2, $3, $4, 'L3SOD Member', '{HTML,CSS,JavaScript}', 'offline')
-         ON CONFLICT (id) DO UPDATE SET full_name = $2, role = $3, email = $4`,
-        [user.id, user.full_name, role, user.email || (user.username + '@class.com')]
-      );
-      count++;
-    }
-    
-    await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
-    
-    res.json({ success: true, message: `Synced ${count} students!`, total: count });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Sync students table
-app.get('/api/sync-all-data', async (req, res) => {
-  try {
-    const users = await pool.query('SELECT id, full_name, username, is_admin, email FROM class_users ORDER BY id');
-    let count = 0;
-    
-    for (const user of users.rows) {
-      const role = user.is_admin ? (user.id === 1 ? 'Admin' : 'Teacher') : 'Student';
-      await pool.query(
-        `INSERT INTO students (id, full_name, role, email, bio, skills, status) 
-         VALUES ($1, $2, $3, $4, 'L3SOD Member', '{HTML,CSS,JavaScript}', 'offline')
-         ON CONFLICT (id) DO UPDATE SET full_name = $2, role = $3, email = $4`,
-        [user.id, user.full_name, role, user.email || (user.username + '@class.com')]
-      );
-      count++;
-    }
-    
-    await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
-    
-    res.json({ success: true, message: `Synced ${count} students!`, total: count });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-// Get all students
-app.get('/api/students', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT id, full_name, role, email, bio, skills, photo, photo_mime_type, status FROM students ORDER BY id'
-    );
-    
-    const students = result.rows.map(student => ({
-      ...student,
-      photo: student.photo ? `data:${student.photo_mime_type};base64,${student.photo.toString('base64')}` : null
-    }));
-    
-    res.json({ success: true, students });
-  } catch (error) {
-    console.error('Error fetching students:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 3001;
