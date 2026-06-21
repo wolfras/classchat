@@ -8,12 +8,14 @@ import circleIcon from '@iconify/icons-mdi/circle';
 import closeIcon from '@iconify/icons-mdi/close';
 import chevronLeftIcon from '@iconify/icons-mdi/chevron-left';
 import chevronRightIcon from '@iconify/icons-mdi/chevron-right';
+import alertIcon from '@iconify/icons-mdi/alert-circle';
 import { API_URL } from '../config';
 import './Gallery.css';
 
 const Gallery = ({ isDarkTheme, currentUser }) => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -26,26 +28,67 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
     fetchStudents();
   }, []);
 
+  // ==================== FETCH WITH ERROR HANDLING ====================
   const fetchStudents = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/students`);
-      const data = await res.json();
-      if (data.success) {
-        setStudents(data.students);
+      setError(null);
+      setLoading(true);
+      
+      console.log('📋 Fetching students from:', `${API_URL}/api/students`);
+      
+      const res = await fetch(`${API_URL}/api/students`, {
+        credentials: 'include'
+      });
+      
+      // ✅ Check HTTP status first
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
-      setLoading(false);
+      
+      const data = await res.json();
+      
+      // ✅ Check API response success flag
+      if (!data.success) {
+        throw new Error(data.message || 'API returned error');
+      }
+      
+      // ✅ Validate data structure
+      if (!Array.isArray(data.students)) {
+        throw new Error('Invalid response: students is not an array');
+      }
+      
+      console.log(`✅ Loaded ${data.students.length} students`);
+      
+      // ✅ Warn if table is empty
+      if (data.students.length === 0) {
+        console.warn('⚠️ Students table is empty! Admin needs to run sync.');
+        setError({
+          type: 'empty',
+          message: 'Students table is empty',
+          hint: 'Admin: Call GET /api/sync-all-data to populate from users'
+        });
+      }
+      
+      setStudents(data.students);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('❌ Error fetching students:', err.message);
+      setError({
+        type: 'error',
+        message: err.message,
+        hint: 'Check backend connection and database'
+      });
+      setStudents([]);
+    } finally {
       setLoading(false);
     }
   };
 
   // Filter students
   const filteredStudents = students.filter(student => {
-    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.role && student.role.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.role?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || 
-                       (student.role && student.role.toLowerCase().includes(filterRole.toLowerCase()));
+                       student.role?.toLowerCase().includes(filterRole.toLowerCase());
     return matchesSearch && matchesRole;
   });
 
@@ -62,7 +105,6 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
-    // Scroll to top of grid
     document.querySelector('.students-grid-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -78,6 +120,22 @@ const Gallery = ({ isDarkTheme, currentUser }) => {
         </h1>
         <p>Meet all {students.length} members of our class</p>
       </section>
+
+      {/* ==================== ERROR BANNER ==================== */}
+      {error && (
+        <section className="error-banner">
+          <div className="error-content">
+            <Icon icon={alertIcon} width="24" height="24" className="error-icon" />
+            <div className="error-text">
+              <h3>{error.message}</h3>
+              {error.hint && <p className="error-hint">{error.hint}</p>}
+            </div>
+            <button className="error-retry-btn" onClick={fetchStudents}>
+              Retry
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Search and Filter */}
       <section className="gallery-controls">

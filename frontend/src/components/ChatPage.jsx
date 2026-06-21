@@ -9,24 +9,29 @@ import messageTextIcon from '@iconify/icons-mdi/message-text';
 import arrowLeftIcon from '@iconify/icons-mdi/arrow-left';
 import menuIcon from '@iconify/icons-mdi/menu';
 import searchIcon from '@iconify/icons-mdi/magnify';
-import { SOCKET_URL } from '../config';
-import { API_URL } from '../config';
+import alertIcon from '@iconify/icons-mdi/alert-circle';
+import wifiOffIcon from '@iconify/icons-mdi/wifi-off';
+import { SOCKET_URL, API_URL } from '../config';
 import './ChatPage.css';
-
 
 const ChatPage = ({ isDarkTheme, currentUser }) => {
   const [socket, setSocket] = useState(null);
+  const [socketError, setSocketError] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+  
   const [groupMessages, setGroupMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
+  const [studentsError, setStudentsError] = useState(null);
+  
   const [selectedUser, setSelectedUser] = useState(null);
   const [privateChats, setPrivateChats] = useState({});
   const [unreadPrivate, setUnreadPrivate] = useState({});
   const [pendingMessages, setPendingMessages] = useState(new Set());
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // NEW: Search functionality
+  // Search functionality
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -34,18 +39,57 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Connect to socket
+  // ==================== SOCKET CONNECTION WITH ERROR HANDLING ====================
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !currentUser.id) {
+      console.warn('⚠️ No user logged in');
+      setSocketError('Please login first');
+      return;
+    }
 
-    console.log('🔌 Connecting as:', currentUser.fullName, '(ID:', currentUser.id, ')');
+    console.log('🔌 Initializing Socket.io connection...');
+    
+    const newSocket = io(SOCKET_URL, {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling']
+    });
 
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
+    // ✅ Handle successful connection
+    newSocket.on('connect', () => {
+      console.log('✅ Socket.io connected!');
+      setSocketConnected(true);
+      setSocketError(null);
+      
+      newSocket.emit('user_join', {
+        id: currentUser.id,
+        name: currentUser.fullName || currentUser.username
+      });
+    });
 
-    newSocket.emit('user_join', {
-      id: currentUser.id,
-      name: currentUser.fullName || currentUser.username
+    // ✅ Handle connection errors
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error);
+      setSocketConnected(false);
+      setSocketError(`Connection failed: ${error.message}`);
+    });
+
+    // ✅ Handle disconnection
+    newSocket.on('disconnect', (reason) => {
+      console.warn('⚠️ Socket disconnected:', reason);
+      setSocketConnected(false);
+      if (reason !== 'io client namespace disconnect') {
+        setSocketError('Disconnected from chat server. Reconnecting...');
+      }
+    });
+
+    // ✅ Handle reconnection
+    newSocket.on('reconnect', () => {
+      console.log('🔄 Socket reconnected');
+      setSocketConnected(true);
+      setSocketError(null);
     });
 
     newSocket.on('message_history', (history) => {
@@ -102,30 +146,61 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
     });
 
     newSocket.on('students_updated', (students) => {
-      setAllStudents(students || []);
-      setOnlineUsers((students || []).filter(s => s.status === 'online'));
+      if (Array.isArray(students)) {
+        setAllStudents(students);
+        setOnlineUsers(students.filter(s => s.status === 'online'));
+      }
     });
+
+    setSocket(newSocket);
 
     return () => {
       newSocket.disconnect();
     };
   }, [currentUser]);
 
-  // Fetch initial data
+  // ==================== FETCH INITIAL STUDENTS WITH ERROR HANDLING ====================
   useEffect(() => {
-    if (!currentUser) return;
-    fetch(`${API_URL}/api/students`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setAllStudents(data.students);
-          setOnlineUsers(data.students.filter(s => s.status === 'online'));
+    if (!currentUser || !currentUser.id) return;
+
+    const fetchStudents = async () => {
+      try {
+        setStudentsError(null);
+        console.log('📋 Fetching students...');
+        
+        const res = await fetch(`${API_URL}/api/students`, {
+          credentials: 'include'
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
-      })
-      .catch(err => console.error('Error:', err));
+
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to load students');
+        }
+
+        if (!Array.isArray(data.students)) {
+          throw new Error('Invalid response format');
+        }
+
+        console.log(`✅ Loaded ${data.students.length} students`);
+        setAllStudents(data.students);
+        setOnlineUsers(data.students.filter(s => s.status === 'online'));
+      } catch (err) {
+        console.error('❌ Error fetching students:', err);
+        setStudentsError(err.message);
+        setAllStudents([]);
+        setOnlineUsers([]);
+      }
+    };
+
+    fetchStudents();
   }, [currentUser]);
 
-  // NEW: Handle search functionality
+  // ==================== SEARCH WITH DEFENSIVE CHECKS ====================
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredStudents([]);
@@ -135,15 +210,21 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
 
     setIsSearching(true);
     const query = searchQuery.toLowerCase();
-    const results = allStudents.filter(
-      student =>
-        student.id !== currentUser?.id &&
-        (student.full_name.toLowerCase().includes(query) ||
-         student.username.toLowerCase().includes(query) ||
-         student.email?.toLowerCase().includes(query))
-    );
+    
+    const results = allStudents.filter(student => {
+      // ✅ Defensive checks for null/undefined
+      if (!student || !student.id) return false;
+      if (student.id === currentUser?.id) return false; // Skip current user
+      
+      const fullNameMatch = student.full_name?.toLowerCase().includes(query) || false;
+      const usernameMatch = student.username?.toLowerCase().includes(query) || false;
+      const emailMatch = student.email?.toLowerCase().includes(query) || false;
+      
+      return fullNameMatch || usernameMatch || emailMatch;
+    });
+    
     setFilteredStudents(results);
-  }, [searchQuery, allStudents, currentUser]);
+  }, [searchQuery, allStudents, currentUser?.id]);
 
   // Auto scroll
   useEffect(() => {
@@ -156,9 +237,10 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
   }, [selectedUser]);
 
   const handleSelectUser = (user) => {
+    if (!user || !user.id) return;
     setSelectedUser(user);
-    setSidebarOpen(false); // Close sidebar on mobile when selecting user
-    setSearchQuery(''); // Clear search
+    setSidebarOpen(false);
+    setSearchQuery('');
     setUnreadPrivate(prev => {
       const updated = { ...prev };
       delete updated[user.id];
@@ -174,12 +256,20 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
 
   const handleBackToGroup = () => {
     setSelectedUser(null);
-    setSearchQuery(''); // Clear search when going back to group
+    setSearchQuery('');
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !socket || !currentUser) return;
+    if (!inputMessage.trim() || !socket || !currentUser || !socketConnected) {
+      console.warn('⚠️ Cannot send message:', { 
+        hasMessage: !!inputMessage.trim(),
+        hasSocket: !!socket,
+        hasUser: !!currentUser,
+        socketConnected 
+      });
+      return;
+    }
 
     const messageText = inputMessage.trim();
 
@@ -268,10 +358,10 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
     );
   }
 
-  // Separate online and offline users (excluding current user)
-  const otherOnlineUsers = onlineUsers.filter(u => u.id !== currentUser?.id);
+  // Separate online and offline users
+  const otherOnlineUsers = onlineUsers.filter(u => u && u.id && u.id !== currentUser?.id);
   const otherOfflineUsers = allStudents.filter(
-    s => s.status !== 'online' && s.id !== currentUser?.id
+    s => s && s.id && s.status !== 'online' && s.id !== currentUser?.id
   );
 
   return (
@@ -283,7 +373,19 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
             <h3><Icon icon={messageTextIcon} width="22" height="22" /> Messages</h3>
           </div>
 
-          {/* NEW: Search Bar */}
+          {/* ==================== SOCKET ERROR BANNER ==================== */}
+          {socketError && (
+            <div className="socket-error-banner">
+              <div className="error-icon-wrapper">
+                <Icon icon={socketConnected ? circleIcon : wifiOffIcon} width="16" height="16" />
+              </div>
+              <div className="error-text">
+                <small>{socketError}</small>
+              </div>
+            </div>
+          )}
+
+          {/* Search Bar */}
           <div className="chat-sidebar-search">
             <div className="search-input-wrapper">
               <Icon icon={searchIcon} width="18" height="18" className="search-icon" />
@@ -329,6 +431,7 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
               </div>
               <div className="search-results-list">
                 {filteredStudents.map(student => {
+                  if (!student || !student.id) return null;
                   const isOnline = student.status === 'online';
                   return (
                     <button
@@ -370,7 +473,15 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
             </div>
           )}
 
-          {/* Online Users Section - Only show if not searching */}
+          {/* Students Error Banner */}
+          {studentsError && !isSearching && (
+            <div className="students-error-banner">
+              <Icon icon={alertIcon} width="18" height="18" />
+              <p>{studentsError}</p>
+            </div>
+          )}
+
+          {/* Online Users Section */}
           {!isSearching && (
             <>
               <div className="section-header">
@@ -503,8 +614,14 @@ const ChatPage = ({ isDarkTheme, currentUser }) => {
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder={selectedUser ? `Message ${selectedUser.full_name?.split(' ')[0]}...` : 'Type a message to everyone...'}
               className="chat-input"
+              disabled={!socketConnected}
             />
-            <button type="submit" className="send-btn" disabled={!inputMessage.trim()}>
+            <button 
+              type="submit" 
+              className="send-btn" 
+              disabled={!inputMessage.trim() || !socketConnected}
+              title={!socketConnected ? 'Waiting for connection...' : ''}
+            >
               <Icon icon={sendIcon} width="20" height="20" />
             </button>
           </form>
