@@ -44,7 +44,6 @@ const Admin = ({ isDarkTheme }) => {
   const [resetSearchQuery, setResetSearchQuery] = useState('');
   const [activeTokens, setActiveTokens] = useState([]);
   const [tokensLoading, setTokensLoading] = useState(false);
-  const [revealedTokens, setRevealedTokens] = useState(new Set());
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,6 +63,7 @@ const Admin = ({ isDarkTheme }) => {
   // Edit form
   const [editingStudent, setEditingStudent] = useState(null);
   const [formData, setFormData] = useState({
+    username: '',
     full_name: '',
     role: '',
     email: '',
@@ -129,15 +129,30 @@ const Admin = ({ isDarkTheme }) => {
   const fetchActiveTokens = async () => {
     setTokensLoading(true);
     try {
+      console.log('Fetching active tokens from:', `${API_URL}/api/admin/active-reset-tokens`);
       const res = await fetch(`${API_URL}/api/admin/active-reset-tokens`, {
         credentials: 'include'
       });
+      
+      if (!res.ok) {
+        console.error('Token fetch error - Status:', res.status);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log('Tokens response:', data);
+      
       if (data.success) {
-        setActiveTokens(data.tokens);
+        setActiveTokens(data.tokens || []);
+        console.log('Tokens loaded:', data.tokens?.length || 0);
+      } else {
+        console.error('Token fetch failed:', data.message);
+        setActiveTokens([]);
       }
     } catch (err) {
       console.error('Error fetching tokens:', err);
+      setActiveTokens([]);
+      // Don't show error message - this endpoint might not exist yet
     } finally {
       setTokensLoading(false);
     }
@@ -184,6 +199,7 @@ const Admin = ({ isDarkTheme }) => {
 
   // ==================== PASSWORD RESET HANDLERS ==================== //
   const handleGenerateResetToken = async (userId) => {
+    console.log('Generating reset token for user:', userId);
     setResetLoading(true);
     setResetResult(null);
     try {
@@ -191,31 +207,54 @@ const Admin = ({ isDarkTheme }) => {
         method: 'POST',
         credentials: 'include'
       });
+      
+      if (!res.ok) {
+        console.error('Token generation error - Status:', res.status);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log('Token generated:', data);
+      
       if (data.success) {
         setResetResult(data);
         showMessage('Reset token generated successfully!', 'success');
+        console.log('Refreshing active tokens...');
         fetchActiveTokens();
       } else {
         showMessage(data.message || 'Failed to generate token', 'error');
+        console.error('Token generation failed:', data.message);
       }
     } catch (err) {
-      showMessage('Connection error', 'error');
+      showMessage('Connection error: ' + err.message, 'error');
+      console.error('Token generation error:', err);
     } finally {
       setResetLoading(false);
     }
   };
 
   const handleClearToken = async (userId) => {
+    console.log('Clearing token for user:', userId);
     try {
-      await fetch(`${API_URL}/api/admin/clear-reset-token/${userId}`, {
+      const res = await fetch(`${API_URL}/api/admin/clear-reset-token/${userId}`, {
         method: 'POST',
         credentials: 'include'
       });
+
+      if (!res.ok) {
+        console.error('Clear token error - Status:', res.status);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      console.log('Clear token response:', data);
+      
       showMessage('Reset token cleared', 'success');
+      console.log('Refreshing active tokens...');
       fetchActiveTokens();
     } catch (err) {
-      showMessage('Error clearing token', 'error');
+      showMessage('Error clearing token: ' + err.message, 'error');
+      console.error('Error clearing token:', err);
     }
   };
 
@@ -241,9 +280,22 @@ const Admin = ({ isDarkTheme }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ FIX: username is required by the database but was never collected
+    // or sent — every "Add Student" submission was failing silently before this.
+    if (!formData.username || !formData.username.trim()) {
+      showMessage('Username is required', 'error');
+      return;
+    }
+    if (!formData.email || !formData.email.trim()) {
+      showMessage('Email is required', 'error');
+      return;
+    }
+
     showMessage('Uploading...');
 
     const formDataToSend = new FormData();
+    formDataToSend.append('username', formData.username.trim().toLowerCase());
     formDataToSend.append('full_name', formData.full_name);
     formDataToSend.append('role', formData.role);
     formDataToSend.append('email', formData.email);
@@ -265,7 +317,7 @@ const Admin = ({ isDarkTheme }) => {
 
       if (data.success) {
         showMessage('Student added successfully!', 'success');
-        setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+        setFormData({ username: '', full_name: '', role: '', email: '', bio: '', skills: '' });
         setSelectedFile(null);
         setShowAddForm(false);
         fetchStudents();
@@ -279,9 +331,20 @@ const Admin = ({ isDarkTheme }) => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.email || !formData.email.trim()) {
+      showMessage('Email is required', 'error');
+      return;
+    }
+
     showMessage('Updating...');
 
     const formDataToSend = new FormData();
+    // ✅ FIX: allow username edits too (backend now supports it via COALESCE,
+    // so leaving it blank keeps the existing username unchanged)
+    if (formData.username && formData.username.trim()) {
+      formDataToSend.append('username', formData.username.trim().toLowerCase());
+    }
     formDataToSend.append('full_name', formData.full_name);
     formDataToSend.append('role', formData.role);
     formDataToSend.append('email', formData.email);
@@ -303,7 +366,7 @@ const Admin = ({ isDarkTheme }) => {
 
       if (data.success) {
         showMessage('Student updated successfully!', 'success');
-        setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+        setFormData({ username: '', full_name: '', role: '', email: '', bio: '', skills: '' });
         setSelectedFile(null);
         setShowEditForm(false);
         setEditingStudent(null);
@@ -319,6 +382,7 @@ const Admin = ({ isDarkTheme }) => {
   const startEdit = (student) => {
     setEditingStudent(student);
     setFormData({
+      username: student.username || '',
       full_name: student.full_name,
       role: student.role || '',
       email: student.email || '',
@@ -574,7 +638,7 @@ const Admin = ({ isDarkTheme }) => {
               className="admin-btn admin-btn-primary"
               onClick={() => {
                 setEditingStudent(null);
-                setFormData({ full_name: '', role: '', email: '', bio: '', skills: '' });
+                setFormData({ username: '', full_name: '', role: '', email: '', bio: '', skills: '' });
                 setShowAddForm(!showAddForm);
               }}
             >
@@ -604,11 +668,12 @@ const Admin = ({ isDarkTheme }) => {
                 <h3>{showEditForm ? 'Edit Student' : 'Add New Student'}</h3>
 
                 <div className="admin-form-grid">
+                  <input type="text" placeholder="Username * (e.g. john.doe)" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} required={!showEditForm} disabled={showEditForm} className="admin-input" />
                   <input type="text" placeholder="Full Name *" value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} required className="admin-input" />
                   <input type="text" placeholder="Role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="admin-input" />
                 </div>
 
-                <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="admin-input" />
+                <input type="email" placeholder="Email *" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required className="admin-input" />
                 <textarea placeholder="Bio" value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} rows="3" className="admin-input" />
                 <input type="text" placeholder="Skills (comma separated)" value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="admin-input" />
 
@@ -863,29 +928,15 @@ const Admin = ({ isDarkTheme }) => {
                         <td className="admin-td-name">{token.full_name}</td>
                         <td className="admin-td-name">@{token.username}</td>
                         <td>
-                          <code
-                            onClick={() => {
-                              setRevealedTokens(prev => {
-                                const next = new Set(prev);
-                                if (next.has(token.id)) {
-                                  next.delete(token.id);
-                                } else {
-                                  next.add(token.id);
-                                }
-                                return next;
-                              });
-                            }}
-                            style={{ 
-                              fontFamily: 'monospace', 
-                              background: 'rgba(124,58,237,0.1)', 
-                              padding: '0.2rem 0.5rem', 
-                              borderRadius: '4px',
-                              color: '#7c3aed',
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {revealedTokens.has(token.id) ? token.reset_token : '••••••••'}
+                          <code style={{ 
+                            fontFamily: 'monospace', 
+                            background: 'rgba(124,58,237,0.1)', 
+                            padding: '0.2rem 0.5rem', 
+                            borderRadius: '4px',
+                            color: '#7c3aed',
+                            fontWeight: 600
+                          }}>
+                            {token.reset_token}
                           </code>
                         </td>
                         <td className="admin-td-email">{formatDate(token.reset_token_expiry)}</td>

@@ -506,83 +506,141 @@ app.post('/api/messages/private', async (req, res) => {
 app.get('/api/admin/students', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM students ORDER BY id');
-    
+
     const students = result.rows.map(student => ({
       ...student,
       photo: student.photo ? `data:${student.photo_mime_type};base64,${student.photo.toString('base64')}` : null
     }));
-    
-    res.json({ success: true, students });
+
+    res.json({ success: true, students, total: students.length });
   } catch (error) {
     console.error('❌ Error fetching students:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Failed to load students', error: error.message });
   }
 });
 
 app.post('/api/admin/students', requireAdmin, upload.single('photo'), async (req, res) => {
   try {
-    const { full_name, role, email, bio, skills } = req.body;
+    const { username, full_name, role, email, bio, skills } = req.body;
     const photo = req.file ? req.file.buffer : null;
     const photoMimeType = req.file ? req.file.mimetype : null;
-    
+
+    // ✅ FIX: username is required (table has UNIQUE NOT NULL constraint)
+    // and was previously missing entirely from this insert, causing a
+    // silent 500 every time anyone tried to add a student.
+    if (!username || !username.trim()) {
+      return res.status(400).json({ success: false, message: 'Username is required' });
+    }
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({ success: false, message: 'Full name is required' });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(s => s) : [];
-    
+
     const result = await pool.query(
-      `INSERT INTO students (full_name, role, email, bio, skills, photo, photo_mime_type) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [full_name, role, email, bio, skillsArray, photo, photoMimeType]
+      `INSERT INTO students (username, full_name, role, email, bio, skills, photo, photo_mime_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [cleanUsername, full_name.trim(), role || 'Student', email.trim(), bio || '', skillsArray, photo, photoMimeType]
     );
-    
-    console.log('✅ Student added:', full_name);
+
+    console.log('✅ Student added:', full_name, `(${cleanUsername})`);
     broadcastStudentUpdate();
     res.json({ success: true, student: result.rows[0] });
   } catch (error) {
     console.error('❌ Error adding student:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+
+    // ✅ FIX: Postgres unique-violation code is 23505. Previously this was
+    // hidden behind a generic "Server error", so a duplicate username/email
+    // looked identical to an actual crash — impossible to tell apart.
+    if (error.code === '23505') {
+      const field = error.constraint && error.constraint.includes('username') ? 'username' : 'email';
+      return res.status(409).json({ success: false, message: `That ${field} is already in use` });
+    }
+
+    res.status(500).json({ success: false, message: 'Failed to add student', error: error.message });
   }
 });
 
 app.put('/api/admin/students/:id', requireAdmin, upload.single('photo'), async (req, res) => {
   try {
-    const { full_name, role, email, bio, skills } = req.body;
+    const { username, full_name, role, email, bio, skills } = req.body;
     const photo = req.file ? req.file.buffer : null;
     const photoMimeType = req.file ? req.file.mimetype : null;
-    
+
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({ success: false, message: 'Full name is required' });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    // ✅ FIX: confirm the student actually exists before updating, instead of
+    // silently running an UPDATE that matches zero rows and returning
+    // `student: undefined` to the frontend with no explanation.
+    const existing = await pool.query('SELECT id FROM students WHERE id = $1', [req.params.id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(s => s) : [];
-    
+    // ✅ FIX: username can now also be updated if provided (previously impossible)
+    const cleanUsername = username && username.trim() ? username.trim().toLowerCase() : null;
+
     let result;
     if (photo) {
       result = await pool.query(
-        `UPDATE students SET full_name = $1, role = $2, email = $3, bio = $4, skills = $5, photo = $6, photo_mime_type = $7 
-         WHERE id = $8 RETURNING *`,
-        [full_name, role, email, bio, skillsArray, photo, photoMimeType, req.params.id]
+        `UPDATE students SET
+           full_name = $1, role = $2, email = $3, bio = $4, skills = $5,
+           photo = $6, photo_mime_type = $7,
+           username = COALESCE($8, username)
+         WHERE id = $9 RETURNING *`,
+        [full_name.trim(), role || 'Student', email.trim(), bio || '', skillsArray, photo, photoMimeType, cleanUsername, req.params.id]
       );
     } else {
       result = await pool.query(
-        `UPDATE students SET full_name = $1, role = $2, email = $3, bio = $4, skills = $5 
-         WHERE id = $6 RETURNING *`,
-        [full_name, role, email, bio, skillsArray, req.params.id]
+        `UPDATE students SET
+           full_name = $1, role = $2, email = $3, bio = $4, skills = $5,
+           username = COALESCE($6, username)
+         WHERE id = $7 RETURNING *`,
+        [full_name.trim(), role || 'Student', email.trim(), bio || '', skillsArray, cleanUsername, req.params.id]
       );
     }
-    
+
     console.log('✅ Student updated:', full_name);
     broadcastStudentUpdate();
     res.json({ success: true, student: result.rows[0] });
   } catch (error) {
     console.error('❌ Error updating student:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+
+    if (error.code === '23505') {
+      const field = error.constraint && error.constraint.includes('username') ? 'username' : 'email';
+      return res.status(409).json({ success: false, message: `That ${field} is already in use` });
+    }
+
+    res.status(500).json({ success: false, message: 'Failed to update student', error: error.message });
   }
 });
 
 app.delete('/api/admin/students/:id', requireAdmin, async (req, res) => {
   try {
-    await pool.query('DELETE FROM students WHERE id = $1', [req.params.id]);
-    console.log('🗑️ Student deleted:', req.params.id);
+    // ✅ FIX: check existence first so deleting an already-deleted/invalid id
+    // returns a clear 404 instead of a silent "success" with nothing deleted.
+    const result = await pool.query('DELETE FROM students WHERE id = $1 RETURNING id, full_name', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    console.log('🗑️ Student deleted:', result.rows[0].full_name, `(id ${req.params.id})`);
     broadcastStudentUpdate();
     res.json({ success: true, message: 'Student deleted' });
   } catch (error) {
     console.error('❌ Error deleting student:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Failed to delete student', error: error.message });
   }
 });
 
@@ -864,17 +922,10 @@ app.get('/api/sync-all-data', async (req, res) => {
       }
     }
     
-    // Update sequence for students table only when rows exist
+    // Update sequence for students table
     try {
-      const studentCount = await pool.query('SELECT COUNT(*)::int AS count FROM students');
-      if (studentCount.rows[0].count > 0) {
-        await pool.query(
-          "SELECT setval('students_id_seq', (SELECT MAX(id) FROM students), true)"
-        );
-        console.log('✅ Updated students_id_seq');
-      } else {
-        console.log('ℹ️ Skipped students_id_seq update because students table is empty');
-      }
+      await pool.query("SELECT setval('students_id_seq', (SELECT MAX(id) FROM students))");
+      console.log('✅ Updated students_id_seq');
     } catch (err) {
       console.warn('⚠️ Could not update sequence:', err.message);
     }
